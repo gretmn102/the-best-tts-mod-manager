@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "build:win",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build:win",
+			"detail": "electron-builder build --win --x64"
+		}
+	]
+}
