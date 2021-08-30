@@ -3,6 +3,18 @@ const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const path = require('path');
 
+const { IgnorePlugin } = require('webpack');
+
+const optionalPlugins = [];
+// For this:
+// ```
+// WARNING in ./node_modules/chokidar/lib/fsevents-handler.js 9:13-32
+// Module not found: Error: Can't resolve 'fsevents' in 'node_modules\chokidar\lib'
+// ```
+if (process.platform !== "darwin") { // don't ignore on OSX
+  optionalPlugins.push(new IgnorePlugin({ resourceRegExp: /^fsevents$/ }));
+}
+
 function srcPaths(src) {
   return path.join(__dirname, src);
 }
@@ -54,6 +66,9 @@ const commonConfig = {
       },
     ],
   },
+  plugins: [
+    ...optionalPlugins,
+  ],
 };
 // #endregion
 
@@ -83,6 +98,7 @@ mainConfig.plugins = [
       },
     ],
   }),
+  ...commonConfig.plugins,
 ];
 
 const rendererConfig = lodash.cloneDeep(commonConfig);
@@ -93,6 +109,7 @@ rendererConfig.plugins = [
   new HtmlWebpackPlugin({
     template: path.resolve(__dirname, './public/index.html'),
   }),
+  ...commonConfig.plugins,
 ];
 
 module.exports = [mainConfig, rendererConfig];

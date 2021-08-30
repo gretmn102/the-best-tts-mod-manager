@@ -61,3 +61,9 @@ app.on('activate', () => {
 
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
+
+// Use electron-reloader for hot reload while developing if possible, ignore if not
+try {
+  module.filename = "";
+  require('electron-reloader')(module);
+} catch (_) { };
