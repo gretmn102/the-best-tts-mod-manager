@@ -14,8 +14,10 @@ function createWindow(): void {
     height: 600,
     width: 800,
     webPreferences: {
-      webSecurity: false,
+      contextIsolation: true,
+      webSecurity: true,
       devTools: process.env.NODE_ENV !== 'production',
+      preload: path.join(app.getAppPath(), 'preload.bundled.js')
     },
   });
 

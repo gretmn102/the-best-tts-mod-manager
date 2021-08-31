@@ -2,13 +2,15 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import logo from './logo.svg';
 import { Counter } from './features/counter/Counter';
+import { Backuper } from './features/backuper/Backuper';
 import './App.css';
 
 function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
+        {/* <img src={logo} className="App-logo" alt="logo" /> */}
+        <Backuper />
         <Counter />
         <p>
           Edit <code>src/App.tsx</code> and save to reload.

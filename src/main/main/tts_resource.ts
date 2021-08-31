@@ -1,4 +1,3 @@
-import { createWriteStream } from "fs";
 import * as fs from "fs-extra";
 import got from "got";
 const stream = require("stream");
@@ -196,7 +195,7 @@ export class TTS_Resource {
                 await this.determineUrlType();
                 if (await this.getFileType() === undefined) throw new NotFoundFileExt_ERROR();
 
-                const outFile = createWriteStream(`${this.programSettings.tempFolder}\\${this.transformatedFileName}`);
+                const outFile = fs.createWriteStream(`${this.programSettings.tempFolder}\\${this.transformatedFileName}`);
                 outFile.on("finish", () => {
                     resolve();
                 });

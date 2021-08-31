@@ -2,7 +2,7 @@ const Registry = require('rage-edit');
 import * as VDF from '@node-steam/vdf';
 import * as fs from "fs-extra";
 import { ConfigGame } from '../shared/structures/tabletopsimulator/registry_configs';
-import { getDocumentsFolder } from 'platform-folders';
+// import { getDocumentsFolder } from 'platform-folders'; // TODO: something wrong on Electron side
 
 const isOSWin64 = () => process.arch === 'x64' || process.env.hasOwnProperty('PROCESSOR_ARCHITEW6432');
 
@@ -90,6 +90,6 @@ export class TTS_Settings {
     }
 
     static async UtilGetDocumentsDirectory(): Promise<string> {
-        return getDocumentsFolder();
+        return fail('TODO: getDocumentsFolder();')
     }
 }

@@ -4,6 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const path = require('path');
 
 const { IgnorePlugin } = require('webpack');
+const { ExternalsPlugin } = require('webpack');
 
 const optionalPlugins = [];
 // For this:
@@ -69,6 +70,9 @@ const commonConfig = {
   plugins: [
     ...optionalPlugins,
   ],
+  stats: {
+    errorDetails: true
+  },
 };
 // #endregion
 
@@ -101,6 +105,14 @@ mainConfig.plugins = [
   ...commonConfig.plugins,
 ];
 
+const preloadConfig = lodash.cloneDeep(commonConfig);
+preloadConfig.entry = './src/main/preload.ts';
+preloadConfig.target = 'electron-preload';
+preloadConfig.output.filename = 'preload.bundled.js';
+preloadConfig.plugins = [
+  ...commonConfig.plugins,
+];
+
 const rendererConfig = lodash.cloneDeep(commonConfig);
 rendererConfig.entry = './src/renderer/renderer.tsx';
 rendererConfig.target = 'electron-renderer';
@@ -109,7 +121,8 @@ rendererConfig.plugins = [
   new HtmlWebpackPlugin({
     template: path.resolve(__dirname, './public/index.html'),
   }),
+  new ExternalsPlugin('commonjs', [ 'desktop-capturer', 'electron', 'ipc', 'ipc-renderer', 'native-image', 'remote', 'web-frame', 'clipboard', 'crash-reporter', 'screen', 'shell' ]),
   ...commonConfig.plugins,
 ];
 
-module.exports = [mainConfig, rendererConfig];
+module.exports = [mainConfig, rendererConfig, preloadConfig];
