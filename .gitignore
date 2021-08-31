@@ -29,3 +29,5 @@ Thumbs.db
 ._*
 
 *.css.d.ts
+
+/src/main/dev-test
