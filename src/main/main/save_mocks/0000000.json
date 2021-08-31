@@ -29788,6 +29788,50 @@
       "LuaScriptState": "",
       "XmlUI": "",
       "GUID": "054502"
+    },
+    {
+      "Name": "Custom_PDF",
+      "Transform": {
+          "posX": 11.410018920898438,
+          "posY": 0.96000027656555176,
+          "posZ": 0.059660468250513077,
+          "rotX": -2.0634505659700153E-08,
+          "rotY": 180.0,
+          "rotZ": -3.66357113534832E-08,
+          "scaleX": 3.9730246067047119,
+          "scaleY": 1.0,
+          "scaleZ": 3.9730246067047119
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "CustomPDF": {
+          "PDFUrl": "https://example.com/142",
+          "PDFPassword": "",
+          "PDFPage": 0,
+          "PDFPageOffset": 0
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": "",
+      "GUID": "c7961f"
     }
   ],
   "LuaScript": "function onload()\r\n    HighlightGUID = {'17b35f','5783f5','799977','39fa77'}\n    Colors = {'Yellow','Green','Red','Blue'}\n    for i=1, #HighlightGUID, 1 do\r\n        if getObjectFromGUID(HighlightGUID[i]) != nil then\r\n        getObjectFromGUID(HighlightGUID[i]).highlightOn(Colors[i])\r\n        end\r\n    end\r\nend",

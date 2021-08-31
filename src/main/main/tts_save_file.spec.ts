@@ -166,6 +166,7 @@ describe('save parser', () => {
             'https://example.com/139',
             'https://example.com/140',
             'http://example.com/141',
+            'https://example.com/142',
           ]
 
         function* getUrls(result:Generator<tts_save_file.Result, void, unknown>) {
