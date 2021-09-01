@@ -66,7 +66,7 @@ app.on('activate', () => {
 
 import * as E from "fp-ts/lib/Either"
 import { parseSave } from "./main/tts_save_file"
-import * as API from "./shared/structures/API"
+import * as API from "_/shared/API"
 
 ipcMain.on(API.channel, async (event, arg) => {
   console.log(`Req: ${event} ${arg}`);

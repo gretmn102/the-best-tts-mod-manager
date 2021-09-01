@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import * as E from 'fp-ts/Either'
 import { AppThunk, RootState } from '../../app/store';
-import * as API from '../../../main/shared/structures/API'
+import * as API from '../../../shared/API'
 
 export enum States {
   IDLE = 'IDLE',

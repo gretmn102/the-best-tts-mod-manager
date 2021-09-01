@@ -4,7 +4,7 @@ const stream = require("stream");
 const { promisify } = require("util");
 const pipeline = promisify(stream.pipeline);
 import { TTS_Settings } from "./tts_settings";
-import { MOD_FILE_TYPES, TTS_RESOURCES_DIRS_SUBDIR } from '../shared/structures/mod_file_types';
+import { MOD_FILE_TYPES, TTS_RESOURCES_DIRS_SUBDIR } from '../../shared/mod_file_types';
 import { CustomError } from 'ts-custom-error'
 import { Program_Settings } from "./program_settings";
 

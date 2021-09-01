@@ -9,11 +9,11 @@ import {
   parse
 } from './backuperSlice';
 import styles from './Backuper.module.css';
-import * as Shared from '_/main/shared/structures/API';
+import * as Shared from '../../../shared/API';
 
 let dispatch: any;
 
-(window as any).electron.ipcRenderer.addListener(Shared.channel, (arg:any) => {
+(window as any).electron?.ipcRenderer.addListener(Shared.channel, (arg:any) => {
   console.log(`Resp: ${arg}`)
   dispatch(parse(arg))
 });

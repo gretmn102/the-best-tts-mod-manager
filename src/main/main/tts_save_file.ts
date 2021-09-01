@@ -1,10 +1,10 @@
-import * as TTS_SaveFormat from "../shared/structures/tabletopsimulator/save_file";
+import * as TTS_SaveFormat from "../../shared/tabletopsimulator/save_file";
 import { promises as fs } from 'fs'
 import * as path from 'path';
 
 import { TTS_Resource } from './tts_resource';
 import { Program_Settings } from "./program_settings";
-import { MOD_FILE_TYPES } from "../shared/structures/mod_file_types";
+import { MOD_FILE_TYPES } from "../../shared/mod_file_types";
 import { TTS_Settings } from "./tts_settings";
 
 interface TypeParams {
