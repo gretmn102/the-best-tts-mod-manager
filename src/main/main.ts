@@ -64,35 +64,19 @@ app.on('activate', () => {
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
 
-import * as E from "fp-ts/lib/Either"
-import { parseSave } from "./main/tts_save_file"
-import * as API from "_/shared/API"
+import * as API from "../shared/API"
+import { handle, state } from './core';
 
 ipcMain.on(API.channel, async (event, arg) => {
   console.log(`Req: ${event} ${arg}`);
+  const res = await handle(arg)
+  event.reply(API.channel, res);
+});
 
-  var req = <API.Req>arg
-  switch (req[0]) {
-    case API.ReqT.PARSE_SAVE:
-      let [, savePath] = req
-
-      parseSave(savePath)
-      .then(x => {
-        const res = <API.Resp>[API.RespT.PARSE_SAVE_RESULT, E.right({ urls: Array.from(x).map(x => x.extractedUrl) })]
-
-        event.reply(API.channel, res);
-      })
-      .catch((err:Error) => {
-        const res = <API.Resp>[API.RespT.PARSE_SAVE_RESULT, E.left(err.message)]
-
-        event.reply(API.channel, res);
-      })
-      break;
-
-    default:
-      console.log(`Unknown ${req}`);
-      break;
-  }
+ipcMain.on(API.getStateChannel, async (event, arg) => {
+  console.log(`getStateChannel: ${event} ${arg}`);
+  const state2:API.GetStateResult = state
+  event.reply(API.getStateChannel, state2);
 });
 
 // Use electron-reloader for hot reload while developing if possible, ignore if not

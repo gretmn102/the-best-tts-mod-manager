@@ -10,6 +10,7 @@ import {
 } from './backuperSlice';
 import styles from './Backuper.module.css';
 import * as Shared from '../../../shared/API';
+import { SaveFileState } from '_/shared/state';
 
 let dispatch: any;
 
@@ -50,7 +51,12 @@ export function Backuper() {
         const res =
           E.fold(
             ((err:Shared.ErrorMsg) => <div>{err}</div>),
-            ((x:Shared.Data) => <ol>{x.urls.map(x => <li>{x}</li>)}</ol>)
+            ((x:SaveFileState) =>
+              <ol>
+                {x.resources.map(x =>
+                  <li>{x.url}</li>)}
+              </ol>
+            )
           ) (x)
         return res
       }
@@ -78,6 +84,6 @@ export function Backuper() {
       )
     }
     default:
-      return <div></div>
+      fail(`Expected States but ${count[0]}`)
   }
 }

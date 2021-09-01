@@ -19,14 +19,14 @@ export interface BackuperState {
   status: ResultState;
 }
 
-const initialState: BackuperState = {
+export const initialState: BackuperState = {
   value: '',
   status: [States.IDLE],
 };
 
 export const backuperSlice = createSlice({
   name: 'backuper',
-  initialState,
+  initialState: initialState,
   // The `reducers` field lets us define reducers and generate associated actions
   reducers: {
     setResult: (state, action: PayloadAction<API.ParseSaveResp>) => {
@@ -59,8 +59,7 @@ export const parse = (resp:API.Resp): AppThunk => (
         break;
 
       default:
-        console.log(`Unknown response: ${resp}`);
-        break;
+        fail(`Unknown response: ${resp}`);
     }
   }
 

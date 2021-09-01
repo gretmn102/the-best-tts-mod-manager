@@ -1,9 +1,8 @@
 import * as E from "fp-ts/lib/Either"
-
-export type Data = { urls: Array<string> }
+import * as State from "./state"
 
 export type ErrorMsg = string
-export type ParseSaveResp = E.Either<ErrorMsg, Data>
+export type ParseSaveResp = E.Either<ErrorMsg, State.SaveFileState>
 
 export enum ReqT {
   PARSE_SAVE = 'PARSE_SAVE'
@@ -20,3 +19,7 @@ export type Resp =
   | [ RespT.PARSE_SAVE_RESULT, ParseSaveResp ]
 
 export const channel = 'backup-channel'
+
+export const getStateChannel = 'getStateChannel'
+
+export type GetStateResult = State.State
