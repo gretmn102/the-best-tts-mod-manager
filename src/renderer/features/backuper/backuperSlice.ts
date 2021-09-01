@@ -33,7 +33,7 @@ export const backuperSlice = createSlice({
       state.status = <ResultState>[States.RESOLVED, action.payload];
     },
     parseSaveReq: (state, action: PayloadAction<string>) => {
-      window.postMessage([API.ReqT.PARSE_SAVE, action.payload], "*")
+      (window as any).electron.ipcRenderer.send(API.channel, [API.ReqT.PARSE_SAVE, action.payload])
       state.status = [States.LOADING]
       state.value = action.payload
     }

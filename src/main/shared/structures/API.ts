@@ -18,3 +18,5 @@ export enum RespT {
 
 export type Resp =
   | [ RespT.PARSE_SAVE_RESULT, ParseSaveResp ]
+
+export const channel = 'backup-channel'

@@ -11,18 +11,16 @@ import {
 import styles from './Backuper.module.css';
 import * as Shared from '_/main/shared/structures/API';
 
-var dispatch: any;
+let dispatch: any;
 
-window.addEventListener('message', (event) => {
-  console.log(`resp: ${event.source} ${event.data}`);
-  var resp = event.data
-  dispatch(parse(resp))
-})
+(window as any).electron.ipcRenderer.addListener(Shared.channel, (arg:any) => {
+  console.log(`Resp: ${arg}`)
+  dispatch(parse(arg))
+});
 
 export function Backuper() {
   const count = useAppSelector(selectStatus);
   dispatch = useAppDispatch();
-  console.log("Backuper created");
 
   const [savePath, setSavePath] = React.useState('');
   const input =
