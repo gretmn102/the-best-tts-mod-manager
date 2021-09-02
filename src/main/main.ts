@@ -69,7 +69,7 @@ import { handle, state } from './core';
 
 ipcMain.on(API.channel, async (event, arg) => {
   console.log(`Req: ${event} ${arg}`);
-  const res = await handle(arg)
+  const res = await handle(arg, x => event.sender.send(API.channel, x))
   event.reply(API.channel, res);
 });
 

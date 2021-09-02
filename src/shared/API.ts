@@ -5,19 +5,29 @@ export type ErrorMsg = string
 export type ParseSaveResp = E.Either<ErrorMsg, State.SaveFileState>
 
 export enum ReqT {
-  PARSE_SAVE = 'PARSE_SAVE'
+  PARSE_SAVE = 'PARSE_SAVE',
+  DOWNLOAD_RESOURCE_BY_INDEX = 'DOWNLOAD_RESOURCE_BY_INDEX',
 }
 
 export type Req =
   | [ ReqT.PARSE_SAVE, string ]
+  | [ ReqT.DOWNLOAD_RESOURCE_BY_INDEX, number ]
 
 export enum RespT {
-  PARSE_SAVE_RESULT = 'PARSE_SAVE_RESULT'
+  PARSE_SAVE_RESULT = 'PARSE_SAVE_RESULT',
+  DOWNLOAD_RESOURCE_BY_INDEX_RESULT = 'DOWNLOAD_RESOURCE_BY_INDEX_RESULT',
+  RESOURCE_DOWNLOADED = 'RESOURCE_DOWNLOADED',
 }
+
+export type Downloaded = [
+  number,
+  [State.LocalFileStateT.LOAD_ERROR, string] | [ State.LocalFileStateT.EXIST, State.AbsolutePath ]
+]
 
 export type Resp =
   | [ RespT.PARSE_SAVE_RESULT, ParseSaveResp ]
-
+  | [ RespT.DOWNLOAD_RESOURCE_BY_INDEX_RESULT, E.Either<ErrorMsg, undefined> ]
+  | [ RespT.RESOURCE_DOWNLOADED, Downloaded ]
 export const channel = 'backup-channel'
 
 export const getStateChannel = 'getStateChannel'

@@ -13,21 +13,19 @@ import * as E from 'fp-ts/lib/Either';
 (window as any).electron?.ipcRenderer.once(API.getStateChannel, (res:API.GetStateResult) => {
   console.log(`Resp state: ${res}`)
   let state:B.BackuperState;
-  switch (res[0]) {
+  const { saveState } = res
+  switch (saveState[0]) {
     case State.MainT.NOT_STARTED_SAVE_FILE_YET:
       state = B.initialState
       break;
 
     case State.MainT.SAVE_FILE_HANDLE:
-      const [, xs] = res
+      const [, xs] = saveState
       state = {
         value: '?', // TODO
         status: [B.States.RESOLVED, E.right(xs)],
       };
       break;
-
-    default:
-      fail(`expected MainT but ${res[0]}`)
   }
 
   ReactDOM.render(

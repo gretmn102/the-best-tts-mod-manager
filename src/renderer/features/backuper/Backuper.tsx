@@ -6,11 +6,13 @@ import {
   parseSaveReq,
   selectStatus,
   States,
-  parse
+  parse,
+  downloadResourceByIndex,
 } from './backuperSlice';
 import styles from './Backuper.module.css';
 import * as Shared from '../../../shared/API';
-import { SaveFileState } from '_/shared/state';
+import { LocalFileStateT, SaveFileState } from '../../../shared/state';
+import { pipe } from 'fp-ts/lib/function';
 
 let dispatch: any;
 
@@ -47,21 +49,57 @@ export function Backuper() {
   function getResolved() {
     switch (count[0]) {
       case States.RESOLVED: {
-        let [_, x] = count
+        const [, x] = count
         const res =
-          E.fold(
+          pipe(x, E.fold(
             ((err:Shared.ErrorMsg) => <div>{err}</div>),
-            ((x:SaveFileState) =>
+            ((x:SaveFileState) => (
               <ol>
-                {x.resources.map(x =>
-                  <li>{x.url}</li>)}
+                {x.resources.map((x, i) => {
+                  const getButton = () => (
+                    <button
+                      className={styles.asyncButton}
+                      onClick={() => dispatch(downloadResourceByIndex(i))}
+                    >
+                      Add Async
+                    </button>
+                  )
+                  var y:JSX.Element;
+                  switch (x.fileState[0]) {
+                    case LocalFileStateT.LOADING:
+                      y = <div>Loading...</div>
+                      break
+                    case LocalFileStateT.NOT_EXIST:
+                      y = getButton()
+                      break
+                    case LocalFileStateT.EXIST:
+                      const [, absolutePath] = x.fileState
+                      y = <img src={`file:///${absolutePath.replaceAll('\\', '/')}`} alt="" />
+                      break
+                    case LocalFileStateT.LOAD_ERROR:
+                      const [, errMsg] = x.fileState
+                      y = (
+                        <div>
+                          <div>{errMsg}</div>
+                          {getButton()}
+                        </div>
+                      )
+                      break
+                  }
+                  return (
+                    <li>
+                      <div>{x.url}</div>
+                      <div>{y}</div>
+                    </li>
+                  )
+                })}
               </ol>
-            )
-          ) (x)
+            ))
+          ))
         return res
       }
       default:
-        fail(`Expected States.RESOLVED but ${count[0]}`)
+        throw Error(`Expected States.RESOLVED but ${count[0]}`)
         break;
     }
   }
@@ -83,7 +121,5 @@ export function Backuper() {
         <div>Loading...</div>
       )
     }
-    default:
-      fail(`Expected States but ${count[0]}`)
   }
 }
