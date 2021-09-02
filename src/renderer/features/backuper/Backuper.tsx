@@ -56,7 +56,7 @@ export function Backuper() {
             ((x:SaveFileState) => (
               <ol>
                 {x.resources.map((x, i) => {
-                  const getButton = () => (
+                  const Button = () => (
                     <button
                       className={styles.asyncButton}
                       onClick={() => dispatch(downloadResourceByIndex(i))}
@@ -70,7 +70,7 @@ export function Backuper() {
                       y = <div>Loading...</div>
                       break
                     case LocalFileStateT.NOT_EXIST:
-                      y = getButton()
+                      y = <Button />
                       break
                     case LocalFileStateT.EXIST:
                       const [, absolutePath] = x.fileState
@@ -81,13 +81,13 @@ export function Backuper() {
                       y = (
                         <div>
                           <div>{errMsg}</div>
-                          {getButton()}
+                          <Button />
                         </div>
                       )
                       break
                   }
                   return (
-                    <li>
+                    <li key={x.url}>
                       <div>{x.url}</div>
                       <div>{y}</div>
                     </li>
