@@ -191,3 +191,23 @@ describe('save parser', () => {
       .catch(e => { done(e) })
   })
 })
+
+describe('extractMultilanguageUrls', () => {
+  it('not contains languages', () => {
+    const input = 'http://example.com'
+    const exp = [
+      { lang: TtsSaveFile.defaultLang, url: input },
+    ]
+    expect(TtsSaveFile.extractMultilanguageUrls(input)).toEqual(exp)
+  })
+  it('contains languages', () => {
+    const input = '{en}http://example.com {ru}http://example.org {fr} http://example.111 {1111} http://example.2222  '
+    const exp = [
+      { lang: 'en', url: 'http://example.com' },
+      { lang: 'ru', url: 'http://example.org' },
+      { lang: 'fr', url: 'http://example.111' },
+      { lang: '1111', url: 'http://example.2222' },
+    ]
+    expect(TtsSaveFile.extractMultilanguageUrls(input)).toEqual(exp)
+  })
+})

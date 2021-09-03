@@ -9,37 +9,37 @@ interface TypeParams {
 
 export interface Result {
   extractedUrl: string
+  lang: string
   typeInSaveFile?: MOD_FILE_TYPES
   linkOrigin?: string
 }
+export const defaultLang = 'default'
+export function extractMultilanguageUrls(url: string) {
+  const urlCollector:{ lang: string; url: string } [] = []
 
-function extractMultilanguageUrls(url: string): string[] {
-  if (url === undefined) throw new Error('undefined')
-
-  const urlCollector = Array(url)
-
-  let urlStringLoop = url
-  let isPopdUrlCollector = false
-  while (true) {
-    const matches = new RegExp(/(\{.*?\}(.*?))(\{|$)/).exec(urlStringLoop)
-    if (matches !== null) {
-      if (!isPopdUrlCollector) {
-        urlCollector.pop()
-        isPopdUrlCollector = true
-      }
-      urlCollector.push(matches[2].trim())
-      urlStringLoop = urlStringLoop.substring(matches[1].length)
-    } else break
+  const reg = /\{(.*?)\}([^{]+)/g
+  let match:RegExpExecArray
+  // eslint-disable-next-line no-cond-assign
+  while ((match = <RegExpExecArray>reg.exec(url)) !== null) {
+    const x = {
+      lang: match[1].trim(),
+      url: match[2].trim(),
+    }
+    urlCollector.push(x)
   }
 
+  if (urlCollector.length === 0) {
+    return [{ lang: defaultLang, url: url }]
+  }
   return urlCollector
 }
 
-function* addLinkToCollection(linkRawString: string, typeInSaveFile?: MOD_FILE_TYPES, linkOrigin?: string) {
+function* addLinkToCollection(linkRawString: string, typeInSaveFile?: MOD_FILE_TYPES, linkOrigin?: string): Generator<Result, void, unknown> {
   if (linkRawString) {
-    for (const extractedUrl of extractMultilanguageUrls(linkRawString)) {
+    for (const { lang, url } of extractMultilanguageUrls(linkRawString)) {
       yield {
-        extractedUrl,
+        extractedUrl: url,
+        lang: lang,
         typeInSaveFile,
         linkOrigin,
       }
