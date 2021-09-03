@@ -1,9 +1,15 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable no-param-reassign */
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import * as E from 'fp-ts/Either'
-import { AppThunk, RootState } from '../../app/store';
+import { AppThunk, RootState } from '../../app/store'
 import * as API from '../../../shared/API'
-import { pipe } from 'fp-ts/lib/function';
-import * as SharedState from '../../../shared/state';
+import { pipe } from 'fp-ts/lib/function'
+import * as SharedState from '../../../shared/state'
+import { ipcRenderer } from '../../ipcRenderer'
 
 export enum States {
   IDLE = 'IDLE',
@@ -24,7 +30,10 @@ export interface BackuperState {
 export const initialState: BackuperState = {
   value: '',
   status: [States.IDLE],
-};
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+const send = (msg:API.Req) => ipcRenderer.send(API.channel, msg)
 
 export const backuperSlice = createSlice({
   name: 'backuper',
@@ -35,23 +44,23 @@ export const backuperSlice = createSlice({
       state.status = [States.RESOLVED, action.payload]
     },
     parseSaveReq: (state, action: PayloadAction<string>) => {
-      (window as any).electron.ipcRenderer.send(API.channel, [API.ReqT.PARSE_SAVE, action.payload])
+      send([API.ReqT.PARSE_SAVE, action.payload])
       state.status = [States.LOADING]
       state.value = action.payload
     },
     downloadResourceByIndex: (state, action: PayloadAction<number>) => {
-      if (state.status[0] == States.RESOLVED) {
+      if (state.status[0] === States.RESOLVED) {
         const [, x] = state.status
 
         pipe(x, E.map((x) => {
-          (window as any).electron.ipcRenderer.send(API.channel, [API.ReqT.DOWNLOAD_RESOURCE_BY_INDEX, action.payload])
+          send([API.ReqT.DOWNLOAD_RESOURCE_BY_INDEX, action.payload])
           x.resources[action.payload].fileState = [SharedState.LocalFileStateT.LOADING]
           return undefined
         }))
       }
     },
     setResource: (state, action: PayloadAction<API.Downloaded>) => {
-      if (state.status[0] == States.RESOLVED) {
+      if (state.status[0] === States.RESOLVED) {
         const [, x] = state.status
 
         const [idx, res] = action.payload
@@ -62,28 +71,28 @@ export const backuperSlice = createSlice({
       }
     },
   },
-});
+})
 
 export const {
   setResult,
   parseSaveReq,
   downloadResourceByIndex,
-  setResource
-} = backuperSlice.actions;
+  setResource,
+} = backuperSlice.actions
 
 // The function below is called a selector and allows us to select a value from
 // the state. Selectors can also be defined inline where they're used instead of
 // in the slice file. For example: `useSelector((state: RootState) => state.backuper.value)`
-export const selectStatus = (state: RootState) => state.backuper.status;
+export const selectStatus = (state: RootState) => state.backuper.status
 
 export const parse = (resp:API.Resp): AppThunk => (
   dispatch,
-  getState
+  getState,
 ) => {
   switch (resp[0]) {
     case API.RespT.PARSE_SAVE_RESULT: {
       const [, res] = resp
-      console.log(`dispatch ${res}`);
+      console.log(`dispatch ${res.toString()}`)
       dispatch(setResult(res))
     } break
     case API.RespT.RESOURCE_DOWNLOADED: {
@@ -99,4 +108,4 @@ export const parse = (resp:API.Resp): AppThunk => (
   }
 }
 
-export default backuperSlice.reducer;
+export default backuperSlice.reducer

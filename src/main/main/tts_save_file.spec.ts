@@ -1,4 +1,4 @@
-import * as tts_save_file from './tts_save_file';
+import * as TtsSaveFile from './tts_save_file'
 
 // TODO: move into `Array` class
 function arraysEqual<T>(a:T [], b:T []) {
@@ -6,24 +6,23 @@ function arraysEqual<T>(a:T [], b:T []) {
   if (a == null || b == null) return false
   if (a.length !== b.length) return false
 
-  for (var i = 0; i < a.length; ++i) {
-      if (a[i] !== b[i]) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false
   }
   return true
 }
 
 function arraysDistinct<T>(myArray:T []) {
-  return myArray.filter((v, i, a) => a.indexOf(v) === i);
+  return myArray.filter((v, i, a) => a.indexOf(v) === i)
 }
 
 describe('save parser', () => {
-  jest.setTimeout(30*1000)
+  jest.setTimeout(30 * 1000)
   it('should parse all urls', done => {
-    tts_save_file.parseSave('./src/main/main/save_mocks/0000000.json')
-    .then(extractedUrls => {
-      try {
-        var exp =
-          [
+    TtsSaveFile.parseSave('./src/main/main/save_mocks/0000000.json')
+      .then(extractedUrls => {
+        try {
+          const exp = [
             'http://example.com/0',
             'https://example.com/1',
             'https://example.com/2',
@@ -169,24 +168,26 @@ describe('save parser', () => {
             'https://example.com/142',
           ]
 
-        function* getUrls(result:Generator<tts_save_file.Result, void, unknown>) {
-          for (let x of result) {
-            yield x.extractedUrl
+          // eslint-disable-next-line no-inner-declarations, camelcase
+          function* getUrls(result:Generator<TtsSaveFile.Result, void, unknown>) {
+            // eslint-disable-next-line no-restricted-syntax
+            for (const x of result) {
+              yield x.extractedUrl
+            }
           }
+
+          const act = Array.from(getUrls(extractedUrls))
+
+          // for (let x of act) {
+          //   console.log(`'${x}',`);
+          // }
+
+          expect(new Set(act)).toEqual(new Set(exp))
+          done()
+        } catch (error) {
+          done(error)
         }
-
-        const act = Array.from(getUrls(extractedUrls))
-
-        // for (let x of act) {
-        //   console.log(`'${x}',`);
-        // }
-
-        expect(new Set(act)).toEqual(new Set(exp))
-        done();
-      } catch (error) {
-        done(error);
-      }
-    })
-    .catch(e => { done(e) })
+      })
+      .catch(e => { done(e) })
   })
-});
+})

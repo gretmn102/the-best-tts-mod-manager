@@ -1,5 +1,5 @@
-import * as E from "fp-ts/lib/Either"
-import * as State from "./state"
+import * as E from 'fp-ts/lib/Either'
+import * as State from './state'
 
 export type ErrorMsg = string
 export type ParseSaveResp = E.Either<ErrorMsg, State.SaveFileState>
