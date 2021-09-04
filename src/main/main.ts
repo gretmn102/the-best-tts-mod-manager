@@ -85,7 +85,11 @@ ipcMain.on(API.getStateChannel, (event, arg) => {
 // Use electron-reloader for hot reload while developing if possible, ignore if not
 try {
   module.filename = ''
+  // https://stackoverflow.com/questions/52413705/electron-window-reloads-when-saved-file-is-overwriten-replaced
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, global-require, import/no-extraneous-dependencies, @typescript-eslint/no-var-requires
-  require('electron-reloader')(module)
+  require('electron-reloader')(
+    __dirname,
+    { ignored: /resources|[/\\]\./ }
+  )(module)
 // eslint-disable-next-line no-empty
 } catch (_) { }
