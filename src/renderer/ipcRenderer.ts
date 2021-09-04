@@ -10,4 +10,7 @@ export const ipcRenderer = {
   addListener: (channel:string, fn: (arg:any) => void) => {
     (window as any).electron?.ipcRenderer.addListener(channel, (res: any) => fn(res))
   },
+  on: (channel:string, fn: (arg:any) => void) => {
+    (window as any).electron?.ipcRenderer.on(channel, (res: any) => fn(res))
+  },
 }

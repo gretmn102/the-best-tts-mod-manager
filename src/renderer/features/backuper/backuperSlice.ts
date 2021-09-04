@@ -23,17 +23,14 @@ export type ResultState =
   | [States.RESOLVED, API.ParseSaveResp]
 
 export interface BackuperState {
-  value: string;
-  status: ResultState;
+  value: string
+  status: ResultState
 }
 
 export const initialState: BackuperState = {
   value: '',
   status: [States.IDLE],
 }
-
-// eslint-disable-next-line @typescript-eslint/no-unsafe-return
-const send = (msg:API.Req) => ipcRenderer.send(API.channel, msg)
 
 export const backuperSlice = createSlice({
   name: 'backuper',
@@ -42,22 +39,6 @@ export const backuperSlice = createSlice({
   reducers: {
     setResult: (state, action: PayloadAction<API.ParseSaveResp>) => {
       state.status = [States.RESOLVED, action.payload]
-    },
-    parseSaveReq: (state, action: PayloadAction<string>) => {
-      send([API.ReqT.PARSE_SAVE, action.payload])
-      state.status = [States.LOADING]
-      state.value = action.payload
-    },
-    downloadResourceByIndex: (state, action: PayloadAction<number>) => {
-      if (state.status[0] === States.RESOLVED) {
-        const [, x] = state.status
-
-        pipe(x, E.map((x) => {
-          send([API.ReqT.DOWNLOAD_RESOURCE_BY_INDEX, action.payload])
-          x.resources[action.payload].fileState = [SharedState.LocalFileStateT.LOADING]
-          return undefined
-        }))
-      }
     },
     setResource: (state, action: PayloadAction<API.Downloaded>) => {
       if (state.status[0] === States.RESOLVED) {
@@ -75,8 +56,6 @@ export const backuperSlice = createSlice({
 
 export const {
   setResult,
-  parseSaveReq,
-  downloadResourceByIndex,
   setResource,
 } = backuperSlice.actions
 
@@ -88,6 +67,7 @@ export const selectStatus = (state: RootState) => state.backuper.status
 export const parse = (resp:API.Resp): AppThunk => (
   dispatch,
   getState,
+  send
 ) => {
   switch (resp[0]) {
     case API.RespT.PARSE_SAVE_RESULT: {
@@ -105,6 +85,34 @@ export const parse = (resp:API.Resp): AppThunk => (
         throw new Error(msgErr)
       }))
     } break
+  }
+}
+
+export const parseSaveReq = (payload: string): AppThunk => (
+  dispatch,
+  getState,
+  send
+) => {
+  send(API.channel, [API.ReqT.PARSE_SAVE, payload])
+  const state = getState().backuper
+  state.status = [States.LOADING]
+  state.value = payload
+}
+
+export const downloadResourceByIndex = (payload: number): AppThunk => (
+  dispatch,
+  getState,
+  send
+) => {
+  const state = getState().backuper
+  if (state.status[0] === States.RESOLVED) {
+    const [, x] = state.status
+
+    pipe(x, E.map((x) => {
+      send(API.channel, [API.ReqT.DOWNLOAD_RESOURCE_BY_INDEX, payload])
+      x.resources[payload].fileState = [SharedState.LocalFileStateT.LOADING]
+      return undefined
+    }))
   }
 }
 
