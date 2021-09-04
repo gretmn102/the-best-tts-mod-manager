@@ -14,6 +14,8 @@ import * as Shared from '../../../shared/API'
 import { LocalFileStateT, SaveFileState } from '../../../shared/state'
 import { pipe } from 'fp-ts/lib/function'
 import { ipcRenderer } from '../../ipcRenderer'
+import Resources from './Resources'
+import { CircularProgress } from '@material-ui/core'
 
 let dispatch: ReturnType<typeof useAppDispatch>
 
@@ -47,7 +49,7 @@ export function Backuper() {
     </div>
   )
 
-  function getResolved() {
+  function PreResources() {
     switch (count[0]) {
       case States.RESOLVED: {
         const [, x] = count
@@ -55,46 +57,10 @@ export function Backuper() {
           x, E.fold(
             ((err:Shared.ErrorMsg) => <div>{err}</div>),
             ((x:SaveFileState) => (
-              <ol>
-                {x.resources.map((x, i) => {
-                  const Button = () => (
-                    <button
-                      className={styles.asyncButton}
-                      onClick={() => dispatch(downloadResourceByIndex(i))}
-                    >
-                      Add Async
-                    </button>
-                  )
-                  let y:JSX.Element
-                  switch (x.fileState[0]) {
-                    case LocalFileStateT.LOADING:
-                      y = <div>Loading...</div>
-                      break
-                    case LocalFileStateT.NOT_EXIST:
-                      y = <Button />
-                      break
-                    case LocalFileStateT.EXIST:
-                      const [, absolutePath] = x.fileState
-                      y = <img src={`file:///${absolutePath.replaceAll('\\', '/')}`} alt="" />
-                      break
-                    case LocalFileStateT.LOAD_ERROR:
-                      const [, errMsg] = x.fileState
-                      y = (
-                        <div>
-                          <div>{errMsg}</div>
-                          <Button />
-                        </div>
-                      )
-                      break
-                  }
-                  return (
-                    <li key={x.url}>
-                      <div>{x.url}</div>
-                      <div>{y}</div>
-                    </li>
-                  )
-                })}
-              </ol>
+              <Resources
+                resources={x.resources}
+                dispatch={dispatch}
+              />
             )),
           ),
         )
@@ -113,14 +79,14 @@ export function Backuper() {
     case States.RESOLVED: {
       return (
         <div>
-          <div>{getResolved()}</div>
           <div>{input}</div>
+          <PreResources />
         </div>
       )
     }
     case States.LOADING: {
       return (
-        <div>Loading...</div>
+        <CircularProgress />
       )
     }
   }
