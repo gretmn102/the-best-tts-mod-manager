@@ -14,13 +14,14 @@ import * as Shared from '../../../shared/API'
 import { LocalFileStateT, SaveFileState } from '../../../shared/state'
 import { pipe } from 'fp-ts/lib/function'
 import { ipcRenderer } from '../../ipcRenderer'
-import Resources from './Resources'
+
+import EnhancedTable from './Resources'
 import { CircularProgress } from '@material-ui/core'
 
 export function Backuper() {
   const count = useAppSelector(selectStatus)
+  const resourcesState = useAppSelector(x => x.resource)
   const dispatch = useAppDispatch()
-
   const [savePath, setSavePath] = React.useState('')
   const input = (
     <div>
@@ -49,9 +50,10 @@ export function Backuper() {
           x, E.fold(
             ((err:Shared.ErrorMsg) => <div>{err}</div>),
             ((x:SaveFileState) => (
-              <Resources
+              <EnhancedTable
+                inner={[resourcesState, x => dispatch(x)]}
                 resources={x.resources}
-                dispatch={dispatch}
+                downloadResourceByIndex={idx => dispatch(downloadResourceByIndex(idx))}
               />
             )),
           ),
