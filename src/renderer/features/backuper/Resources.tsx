@@ -78,6 +78,43 @@ enum ButtonState {
   DISABLE = 'DISABLE',
 }
 
+function renderResource(resource: Resource, downloadResource: (dummy: void) => void, classes: ReturnType<typeof useStyles>) {
+  let buttonState: ButtonState
+  switch (resource.fileState[0]) {
+    case LocalFileStateT.LOADING:
+      buttonState = ButtonState.LOADING
+      break
+    case LocalFileStateT.NOT_EXIST:
+      buttonState = ButtonState.NORMAL
+      break
+    case LocalFileStateT.EXIST:
+      buttonState = ButtonState.NORMAL // TODO: warn that the file has already been downloaded
+      break
+    case LocalFileStateT.LOAD_ERROR: // TODO: handle error
+      buttonState = ButtonState.NORMAL
+      break
+  }
+  const onClick = () => {
+    if (buttonState === ButtonState.NORMAL) {
+      downloadResource()
+    }
+  }
+  return (
+    <div className={classes.wrapper}>
+      <Button
+        variant="contained"
+        color="primary"
+        startIcon={<GetApp />}
+        disabled={buttonState !== ButtonState.NORMAL}
+        onClick={onClick}
+      >
+        {buttonState !== ButtonState.LOADING ? 'Download' : ''}
+      </Button>
+      {buttonState === ButtonState.LOADING && <CircularProgress size={24} className={classes.buttonProgress} />}
+    </div>
+  )
+}
+
 export function Resources(params:{resources:Resource[], dispatch: ReturnType<typeof useAppDispatch>}) {
   const { resources, dispatch } = params
 
@@ -85,7 +122,7 @@ export function Resources(params:{resources:Resource[], dispatch: ReturnType<typ
 
   const columns: GridColumns = [
     { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'Url', headerName: 'URL', width: 130 },
+    { field: 'url', headerName: 'URL', width: 130 },
     {
       field: 'imgUri',
       headerName: 'Image',
@@ -107,41 +144,7 @@ export function Resources(params:{resources:Resource[], dispatch: ReturnType<typ
       renderCell: (params: GridRenderCellParams) => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, prefer-destructuring
         const resource: Resource = params.row.resource
-        let buttonState:ButtonState
-        switch (resource.fileState[0]) {
-          case LocalFileStateT.LOADING:
-            buttonState = ButtonState.LOADING
-            break
-          case LocalFileStateT.NOT_EXIST:
-            buttonState = ButtonState.NORMAL
-            break
-          case LocalFileStateT.EXIST:
-            buttonState = ButtonState.NORMAL // TODO: warn that the file has already been downloaded
-            break
-          case LocalFileStateT.LOAD_ERROR:
-            // const [, errMsg] = resource.fileState // TODO: handle error
-            buttonState = ButtonState.NORMAL
-            break
-        }
-        const onClick = () => {
-          if (buttonState === ButtonState.NORMAL) {
-            dispatch(downloadResourceByIndex(params.row.id))
-          }
-        }
-        return (
-          <div className={classes.wrapper}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<GetApp />}
-              disabled={buttonState !== ButtonState.NORMAL}
-              onClick={onClick}
-            >
-              { buttonState !== ButtonState.LOADING ? 'Download' : ''}
-            </Button>
-            {buttonState === ButtonState.LOADING && <CircularProgress size={24} className={classes.buttonProgress} />}
-          </div>
-        )
+        return renderResource(resource, () => dispatch(downloadResourceByIndex(params.row.id)), classes)
       }
     },
   ]
@@ -165,22 +168,19 @@ export function Resources(params:{resources:Resource[], dispatch: ReturnType<typ
   })
 
   return (
-    <main className={classes.content}>
-      <div className={classes.appBarSpacer} />
-      <Container maxWidth="lg" className={classes.container}>
-        <Grid item xs={12}>
-          <Paper className={classes.paper}>
-            <DataGrid
-              rows={rows}
-              columns={columns}
-              pageSize={10}
-              columnBuffer={8}
-              autoHeight
-            />
-          </Paper>
-        </Grid>
-      </Container>
-    </main>
+    <Container maxWidth="lg" className={classes.container}>
+      <Grid item xs={12}>
+        <Paper className={classes.paper}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            pageSize={10}
+            columnBuffer={8}
+            autoHeight
+          />
+        </Paper>
+      </Grid>
+    </Container>
   )
 }
 
