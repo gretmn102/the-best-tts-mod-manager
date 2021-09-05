@@ -17,17 +17,9 @@ import { ipcRenderer } from '../../ipcRenderer'
 import Resources from './Resources'
 import { CircularProgress } from '@material-ui/core'
 
-let dispatch: ReturnType<typeof useAppDispatch>
-
-ipcRenderer.addListener(Shared.channel, (arg:any) => {
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-  console.log(`Resp: ${arg}`)
-  dispatch(parse(arg))
-})
-
 export function Backuper() {
   const count = useAppSelector(selectStatus)
-  dispatch = useAppDispatch()
+  const dispatch = useAppDispatch()
 
   const [savePath, setSavePath] = React.useState('')
   const input = (
