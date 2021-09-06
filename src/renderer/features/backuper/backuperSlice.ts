@@ -9,7 +9,7 @@ import { AppThunk, RootState } from '../../app/store'
 import * as API from '../../../shared/API'
 import { pipe } from 'fp-ts/lib/function'
 import * as SharedState from '../../../shared/state'
-import { ipcRenderer } from '../../ipcRenderer'
+import update from 'immutability-helper'
 
 export enum States {
   IDLE = 'IDLE',
@@ -51,6 +51,10 @@ export const backuperSlice = createSlice({
         }))
       }
     },
+    // eslint-disable-next-line arrow-body-style
+    set: (state, action: PayloadAction<BackuperState>) => {
+      return action.payload
+    },
   },
 })
 
@@ -67,7 +71,7 @@ export const selectStatus = (state: RootState) => state.backuper.status
 export const parse = (resp:API.Resp): AppThunk => (
   dispatch,
   getState,
-  send
+  send,
 ) => {
   switch (resp[0]) {
     case API.RespT.PARSE_SAVE_RESULT: {
@@ -91,28 +95,50 @@ export const parse = (resp:API.Resp): AppThunk => (
 export const parseSaveReq = (payload: string): AppThunk => (
   dispatch,
   getState,
-  send
+  send,
 ) => {
   send(API.channel, [API.ReqT.PARSE_SAVE, payload])
-  const state = getState().backuper
-  state.status = [States.LOADING]
-  state.value = payload
+  const state = update(getState().backuper, {
+    $set: { value: payload, status: [States.LOADING] },
+  })
+  dispatch(backuperSlice.actions.set(state))
 }
 
-export const downloadResourceByIndex = (payload: number): AppThunk => (
+export const downloadResourceByIndex = (index: number): AppThunk => (
   dispatch,
   getState,
-  send
+  send,
 ) => {
   const state = getState().backuper
   if (state.status[0] === States.RESOLVED) {
     const [, x] = state.status
 
-    pipe(x, E.map((x) => {
-      send(API.channel, [API.ReqT.DOWNLOAD_RESOURCE_BY_INDEX, payload])
-      x.resources[payload].fileState = [SharedState.LocalFileStateT.LOADING]
-      return undefined
+    const saveFileState = pipe(x, E.map((saveFileState) => {
+      send(API.channel, [API.ReqT.DOWNLOAD_RESOURCE_BY_INDEX, index])
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return update(saveFileState, {
+        resources: {
+          [index]: {
+            fileState: {
+              $set: [SharedState.LocalFileStateT.LOADING],
+            },
+          },
+        },
+      })
     }))
+
+    const result = update(
+      state,
+      {
+        status: {
+          1: {
+            $set: saveFileState,
+          },
+        },
+      },
+    )
+    dispatch(backuperSlice.actions.set(result))
   }
 }
 
