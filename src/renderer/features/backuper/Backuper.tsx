@@ -6,29 +6,23 @@ import {
   parseSaveReq,
   selectStatus,
   States,
-  parse,
-  downloadResourceByIndex,
 } from './backuperSlice'
 import styles from './Backuper.module.css'
 import * as Shared from '../../../shared/API'
-import { LocalFileStateT, SaveFileState } from '../../../shared/state'
+import { SaveFileState } from '../../../shared/state'
 import { pipe } from 'fp-ts/lib/function'
-import { ipcRenderer } from '../../ipcRenderer'
-
 import EnhancedTable from './Resources'
 import { CircularProgress } from '@material-ui/core'
 
-export function Backuper() {
-  const count = useAppSelector(selectStatus)
-  const resourcesState = useAppSelector(x => x.resource)
+function Input() {
   const dispatch = useAppDispatch()
   const [savePath, setSavePath] = React.useState('')
-  const input = (
+  return (
     <div>
       <div className={styles.row}>
         <input
           className={styles.textbox}
-          aria-label="Set increment amount"
+          aria-label="Set save path"
           value={savePath}
           onChange={(e) => setSavePath(e.target.value)}
         />
@@ -36,44 +30,48 @@ export function Backuper() {
           className={styles.asyncButton}
           onClick={() => dispatch(parseSaveReq(savePath))}
         >
-          Add Async
+          Load save file
         </button>
       </div>
     </div>
   )
+}
 
-  function PreResources() {
-    switch (count[0]) {
-      case States.RESOLVED: {
-        const [, x] = count
-        const res = pipe(
-          x, E.fold(
-            ((err:Shared.ErrorMsg) => <div>{err}</div>),
-            ((x:SaveFileState) => (
-              <EnhancedTable
-                inner={[resourcesState, x => dispatch(x)]}
-                resources={x.resources}
-                downloadResourceByIndex={idx => dispatch(downloadResourceByIndex(idx))}
-              />
-            )),
-          ),
-        )
-        return res
-      }
-      default:
-        throw Error(`Expected States.RESOLVED but ${count[0]}`)
-        break
+function PreResources() {
+  const count = useAppSelector(selectStatus)
+
+  switch (count[0]) {
+    case States.RESOLVED: {
+      const [, x] = count
+      const res = pipe(
+        x, E.fold(
+          ((err:Shared.ErrorMsg) => <div>{err}</div>),
+          ((x:SaveFileState) => (
+            <EnhancedTable
+              resources={x.resources}
+            />
+          )),
+        ),
+      )
+      return res
     }
+    default:
+      throw Error(`Expected States.RESOLVED but ${count[0]}`)
+      break
   }
+}
+
+export function Backuper() {
+  const count = useAppSelector(selectStatus)
 
   switch (count[0]) {
     case States.IDLE: {
-      return input
+      return <Input />
     }
     case States.RESOLVED: {
       return (
         <div>
-          <div>{input}</div>
+          <Input />
           <PreResources />
         </div>
       )

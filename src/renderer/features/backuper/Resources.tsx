@@ -22,23 +22,13 @@ import FormControlLabel from '@material-ui/core/FormControlLabel'
 import Switch from '@material-ui/core/Switch'
 import DeleteIcon from '@material-ui/icons/Delete'
 import FilterListIcon from '@material-ui/icons/FilterList'
-import {
-  DataGrid,
-  GridColDef,
-  GridApi,
-  GridCellValue,
-  GridCellParams,
-  MuiEvent,
-  GridRenderCellParams,
-  GridColumns,
-} from '@mui/x-data-grid'
 import * as React from 'react'
 import {
   CircularProgress,
 } from '@material-ui/core'
 import { blue } from '@material-ui/core/colors'
 import { LocalFileStateT, Resource } from '../../../shared/state'
-import { useAppSelector, useAppDispatch } from '../../app/hooks'
+import { useAppDispatch } from '../../app/hooks'
 import { downloadResourceByIndex } from './backuperSlice'
 
 const useStyles = makeStyles((theme) => ({
@@ -53,15 +43,11 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: theme.spacing(4),
   },
   paper: {
-    padding: theme.spacing(2),
-    display: 'flex',
-    overflow: 'auto',
-    flexDirection: 'column',
-    elevation: 3,
+    width: '100%',
+    marginBottom: theme.spacing(2),
   },
   root: {
-    display: 'flex',
-    alignItems: 'center',
+    width: '100%',
   },
   wrapper: {
     margin: theme.spacing(1),
@@ -88,6 +74,20 @@ const useStyles = makeStyles((theme) => ({
     marginTop: -12,
     marginLeft: -12,
   },
+  table: {
+    minWidth: 750,
+  },
+  visuallyHidden: {
+    border: 0,
+    clip: 'rect(0 0 0 0)',
+    height: 1,
+    margin: -1,
+    overflow: 'hidden',
+    padding: 0,
+    position: 'absolute',
+    top: 20,
+    width: 1,
+  },
 }))
 
 enum ButtonState {
@@ -96,7 +96,10 @@ enum ButtonState {
   DISABLE = 'DISABLE',
 }
 
-function renderResource(resource: Resource, downloadResource: (dummy: void) => void, classes: ReturnType<typeof useStyles>) {
+function ResourceView(params: { resource: Resource, id: number, classes: ReturnType<typeof useStyles> }) {
+  const { resource, id, classes } = params
+  const dispatch = useAppDispatch()
+
   let buttonState: ButtonState
   switch (resource.fileState[0]) {
     case LocalFileStateT.LOADING:
@@ -114,7 +117,7 @@ function renderResource(resource: Resource, downloadResource: (dummy: void) => v
   }
   const onClick = () => {
     if (buttonState === ButtonState.NORMAL) {
-      downloadResource()
+      dispatch(downloadResourceByIndex(id))
     }
   }
   return (
@@ -198,7 +201,7 @@ const headCells: HeadCell[] = [
 ]
 
 interface EnhancedTableProps {
-  classes: ReturnType<typeof useStyles2>
+  classes: ReturnType<typeof useStyles>
   numSelected: number
   onRequestSort: (event: React.MouseEvent<unknown>, property: keyof Data) => void
   onSelectAllClick: (event: React.ChangeEvent<HTMLInputElement>) => void
@@ -316,57 +319,22 @@ const EnhancedTableToolbar = (props: EnhancedTableToolbarProps) => {
   )
 }
 
-const useStyles2 = makeStyles((theme: Theme) =>
-  createStyles({
-    root: {
-      width: '100%',
-    },
-    paper: {
-      width: '100%',
-      marginBottom: theme.spacing(2),
-    },
-    table: {
-      minWidth: 750,
-    },
-    visuallyHidden: {
-      border: 0,
-      clip: 'rect(0 0 0 0)',
-      height: 1,
-      margin: -1,
-      overflow: 'hidden',
-      padding: 0,
-      position: 'absolute',
-      top: 20,
-      width: 1,
-    },
-  }))
-import * as Slice from './resourcesSlice'
-import { AnyAction, Dispatch } from '@reduxjs/toolkit'
+export default function EnhancedTable(params:{ resources:Resource[] }) {
+  const { resources } = params
 
-export default function EnhancedTable(params:{inner:[Slice.State, Dispatch<AnyAction>], resources:Resource[], downloadResourceByIndex: (idx: number) => void}) {
-  const { inner, resources, downloadResourceByIndex } = params
-  const [state, dispatch] = inner
-
-  const {
-    order, orderBy, selected, page, dense, rowsPerPage,
-  } = state
-  const {
-    setOrder, setOrderBy, setSelected, setPage, setDense, setRowsPerPage,
-  } = Slice.resourceSlice.actions
-
-  const classes = useStyles2()
+  const classes = useStyles()
   const classes2 = useStyles()
-  // const [order, setOrder] = React.useState<Order>('asc')
-  // const [orderBy, setOrderBy] = React.useState<keyof Data>('name')
-  // const [selected, setSelected] = React.useState<string[]>([])
-  // const [page, setPage] = React.useState(0)
-  // const [dense, setDense] = React.useState(false)
-  // const [rowsPerPage, setRowsPerPage] = React.useState(5)
+  const [order, setOrder] = React.useState<Order>('asc')
+  const [orderBy, setOrderBy] = React.useState<keyof Data>('name')
+  const [selected, setSelected] = React.useState<string[]>([])
+  const [page, setPage] = React.useState(0)
+  const [dense, setDense] = React.useState(false)
+  const [rowsPerPage, setRowsPerPage] = React.useState(5)
 
   const handleRequestSort = (event: React.MouseEvent<unknown>, property: keyof Data) => {
     const isAsc = orderBy === property && order === 'asc'
-    dispatch(setOrder(isAsc ? 'desc' : 'asc'))
-    dispatch(setOrderBy(property))
+    setOrder(isAsc ? 'desc' : 'asc')
+    setOrderBy(property)
   }
 
   const rows = resources.map((resource, i): Data => {
@@ -392,10 +360,10 @@ export default function EnhancedTable(params:{inner:[Slice.State, Dispatch<AnyAc
   const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
       const newSelecteds = rows.map((n) => n.name)
-      dispatch(setSelected(newSelecteds))
+      setSelected(newSelecteds)
       return
     }
-    dispatch(setSelected([]))
+    setSelected([])
   }
 
   const handleClick = (event: React.MouseEvent<unknown>, name: string) => {
@@ -415,20 +383,20 @@ export default function EnhancedTable(params:{inner:[Slice.State, Dispatch<AnyAc
       )
     }
 
-    dispatch(setSelected(newSelected))
+    setSelected(newSelected)
   }
 
   const handleChangePage = (event: unknown, newPage: number) => {
-    dispatch(setPage(newPage))
+    setPage(newPage)
   }
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch(setRowsPerPage(parseInt(event.target.value, 10)))
-    dispatch(setPage(0))
+    setRowsPerPage(parseInt(event.target.value, 10))
+    setPage(0)
   }
 
   const handleChangeDense = (event: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch(setDense(event.target.checked))
+    setDense(event.target.checked)
   }
 
   const isSelected = (name: string) => selected.indexOf(name) !== -1
@@ -487,7 +455,11 @@ export default function EnhancedTable(params:{inner:[Slice.State, Dispatch<AnyAc
                         {row.resourceSrc && (<img style={{ height: (dense ? 33 : 53) }} src={row.resourceSrc} alt="resource" />)}
                       </TableCell>
                       <TableCell align="right" style={{ width: 40 }}>
-                        {renderResource(row.origin, () => downloadResourceByIndex(row.id), classes2)}
+                        <ResourceView
+                          resource={row.origin}
+                          id={row.id}
+                          classes={classes2}
+                        />
                       </TableCell>
                     </TableRow>
                   )

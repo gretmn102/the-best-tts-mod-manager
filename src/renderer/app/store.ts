@@ -2,13 +2,11 @@ import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit'
 import counterReducer from '../features/counter/counterSlice'
 import backuperReducer, { BackuperState, initialState } from '../features/backuper/backuperSlice'
 import thunkMiddleware from 'redux-thunk'
-import { resourceSlice } from '../features/backuper/resourcesSlice'
 
 export const initStore = (initialState:BackuperState, send:(channel:string, msg:any) => void) => configureStore({
   reducer: {
     counter: counterReducer,
     backuper: backuperReducer,
-    resource: resourceSlice.reducer,
   },
   preloadedState: {
     // counter: initialState,
