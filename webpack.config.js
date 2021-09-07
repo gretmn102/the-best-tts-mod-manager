@@ -5,6 +5,7 @@ const path = require('path');
 
 const { IgnorePlugin } = require('webpack');
 const { ExternalsPlugin } = require('webpack');
+const { ContextReplacementPlugin } = require('webpack');
 
 const optionalPlugins = [];
 // For this:
@@ -69,6 +70,7 @@ const commonConfig = {
   },
   plugins: [
     ...optionalPlugins,
+    new ContextReplacementPlugin(/keyv/), // for 'got' packet
   ],
   stats: {
     errorDetails: true
