@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable no-param-reassign */
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import * as F from 'fp-ts'
 import * as E from 'fp-ts/Either'
 import { AppThunk, RootState } from '../../app/store'
 import * as API from '../../../shared/API'
@@ -89,6 +90,7 @@ export const parse = (resp:API.Resp): AppThunk => (
         throw new Error(msgErr)
       }))
     } break
+    case API.RespT.DOWNLOAD_RESOURCES_BY_INDEXES_RESULT: break
   }
 }
 
@@ -125,6 +127,53 @@ export const downloadResourceByIndex = (index: number): AppThunk => (
             },
           },
         },
+      })
+    }))
+
+    const result = update(
+      state,
+      {
+        status: {
+          1: {
+            $set: saveFileState,
+          },
+        },
+      },
+    )
+    dispatch(backuperSlice.actions.set(result))
+  }
+}
+
+export const downloadResourcesByIndexes = (indexes: number []): AppThunk => (
+  dispatch,
+  getState,
+  send,
+) => {
+  const state = getState().backuper
+  if (state.status[0] === States.RESOLVED) {
+    const [, x] = state.status
+
+    const saveFileState = pipe(x, E.map((saveFileState) => {
+      send(API.channel, [API.ReqT.DOWNLOAD_RESOURCES_BY_INDEXES, indexes])
+
+      const targetResources = pipe(
+        indexes,
+        F.array.reduce(
+          {},
+          ((st, index) => ({
+            ...st,
+            [index]: {
+              fileState: {
+                $set: [SharedState.LocalFileStateT.LOADING],
+              },
+            },
+          })),
+        ),
+      )
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return update(saveFileState, {
+        resources: targetResources,
       })
     }))
 

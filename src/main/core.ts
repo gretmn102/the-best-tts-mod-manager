@@ -108,6 +108,42 @@ export async function handle(req:API.Req, send: (x:API.Resp) => void): Promise<A
           break
         case MainT.NOT_STARTED_SAVE_FILE_YET: { throw new Error('Not implemented yet: MainT.NOT_STARTED_SAVE_FILE_YET case') }
       }
+    } break
+    case API.ReqT.DOWNLOAD_RESOURCES_BY_INDEXES: {
+      const [, indexes] = req
+      switch (state.saveState[0]) {
+        case MainT.SAVE_FILE_HANDLE:
+          const [, x] = state.saveState
+          const f = (idx:number) => {
+            const resource = x.resources[idx]
+            if (resource.fileState[0] === SharedState.LocalFileStateT.EXIST) {
+              // TODO: replace?
+              send([ API.RespT.RESOURCE_DOWNLOADED, [idx, resource.fileState] ])
+            } else {
+              resource.fileState = [ SharedState.LocalFileStateT.LOADING ]
+              const resourcePath = getPath(state, resource.url)
+
+              downloadFile(
+                resource.url,
+                resourcePath,
+                (url => {
+                  const fileState:SharedState.LocalFileState = [ SharedState.LocalFileStateT.EXIST, resourcePath ]
+                  resource.fileState = fileState
+                  send([ API.RespT.RESOURCE_DOWNLOADED, [idx, fileState] ])
+                }),
+                ((url, err: Error) => {
+                  const fileState: SharedState.LocalFileState = [ SharedState.LocalFileStateT.LOAD_ERROR, err.message ]
+                  resource.fileState = fileState
+                  send([ API.RespT.RESOURCE_DOWNLOADED, [idx, fileState] ])
+                }),
+              )
+            }
+          }
+          indexes.forEach(f)
+          const res:API.Resp = [API.RespT.DOWNLOAD_RESOURCES_BY_INDEXES_RESULT]
+          return res
+        case MainT.NOT_STARTED_SAVE_FILE_YET: { throw new Error('Not implemented yet: MainT.NOT_STARTED_SAVE_FILE_YET case') }
+      } break
     }
   }
 }

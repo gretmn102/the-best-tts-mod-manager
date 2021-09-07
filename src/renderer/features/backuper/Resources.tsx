@@ -29,7 +29,7 @@ import {
 import { blue } from '@material-ui/core/colors'
 import { LocalFileStateT, Resource } from '../../../shared/state'
 import { useAppDispatch } from '../../app/hooks'
-import { downloadResourceByIndex } from './backuperSlice'
+import { downloadResourceByIndex, downloadResourcesByIndexes } from './backuperSlice'
 
 const useStyles = makeStyles((theme) => ({
   content: {
@@ -129,7 +129,7 @@ function ResourceView(params: { resource: Resource, id: number, classes: ReturnT
         disabled={buttonState !== ButtonState.NORMAL}
         onClick={onClick}
       >
-        {buttonState !== ButtonState.LOADING ? 'Download' : ''}
+        Download
       </Button>
       {buttonState === ButtonState.LOADING && <CircularProgress size={24} className={classes.buttonProgress} />}
     </div>
@@ -138,7 +138,6 @@ function ResourceView(params: { resource: Resource, id: number, classes: ReturnT
 
 export type Data = {
   id: number
-  name: string
   url: string
   resourceSrc: string | undefined
   origin: Resource
@@ -187,16 +186,13 @@ const headCells: HeadCell[] = [
     id: 'id', numeric: false, disablePadding: true, label: 'ID',
   },
   {
-    id: 'name', numeric: true, disablePadding: false, label: 'Name',
-  },
-  {
     id: 'url', numeric: false, disablePadding: false, label: 'URL',
   },
   {
     id: 'resourceSrc', numeric: false, disablePadding: false, label: 'Resource',
   },
   {
-    id: 'origin', numeric: false, disablePadding: false, label: 'Protein (g)',
+    id: 'origin', numeric: false, disablePadding: false, label: 'Downloads',
   },
 ]
 
@@ -278,13 +274,14 @@ const useToolbarStyles = makeStyles((theme: Theme) =>
   }))
 
 interface EnhancedTableToolbarProps {
-  numSelected: number
+  selected: number []
 }
 
 const EnhancedTableToolbar = (props: EnhancedTableToolbarProps) => {
   const classes = useToolbarStyles()
-  const { numSelected } = props
-
+  const { selected } = props
+  const dispatch = useAppDispatch()
+  const numSelected = selected.length
   return (
     <Toolbar
       className={clsx(classes.root, {
@@ -299,13 +296,16 @@ const EnhancedTableToolbar = (props: EnhancedTableToolbarProps) => {
         </Typography>
       ) : (
         <Typography className={classes.title} variant="h6" id="tableTitle" component="div">
-          Nutrition
+          Resources
         </Typography>
       )}
       {numSelected > 0 ? (
-        <Tooltip title="Delete">
-          <IconButton aria-label="delete">
-            <DeleteIcon />
+        <Tooltip title="Download">
+          <IconButton
+            aria-label="download"
+            onClick={e => void dispatch(downloadResourcesByIndexes(selected))}
+          >
+            <GetApp />
           </IconButton>
         </Tooltip>
       ) : (
@@ -325,8 +325,8 @@ export default function EnhancedTable(params:{ resources:Resource[] }) {
   const classes = useStyles()
   const classes2 = useStyles()
   const [order, setOrder] = React.useState<Order>('asc')
-  const [orderBy, setOrderBy] = React.useState<keyof Data>('name')
-  const [selected, setSelected] = React.useState<string[]>([])
+  const [orderBy, setOrderBy] = React.useState<keyof Data>('id')
+  const [selected, setSelected] = React.useState<number []>([])
   const [page, setPage] = React.useState(0)
   const [dense, setDense] = React.useState(false)
   const [rowsPerPage, setRowsPerPage] = React.useState(5)
@@ -350,7 +350,6 @@ export default function EnhancedTable(params:{ resources:Resource[] }) {
     }
     return {
       id: i,
-      name: i.toString(),
       url: resource.url,
       resourceSrc: resourceSrc,
       origin: resource,
@@ -359,19 +358,19 @@ export default function EnhancedTable(params:{ resources:Resource[] }) {
 
   const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
-      const newSelecteds = rows.map((n) => n.name)
+      const newSelecteds = rows.map((n) => n.id)
       setSelected(newSelecteds)
       return
     }
     setSelected([])
   }
 
-  const handleClick = (event: React.MouseEvent<unknown>, name: string) => {
-    const selectedIndex = selected.indexOf(name)
-    let newSelected: string[] = []
+  const handleClick = (event: React.MouseEvent<unknown>, key: number) => {
+    const selectedIndex = selected.indexOf(key)
+    let newSelected: number [] = []
 
     if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selected, name)
+      newSelected = newSelected.concat(selected, key)
     } else if (selectedIndex === 0) {
       newSelected = newSelected.concat(selected.slice(1))
     } else if (selectedIndex === selected.length - 1) {
@@ -399,14 +398,14 @@ export default function EnhancedTable(params:{ resources:Resource[] }) {
     setDense(event.target.checked)
   }
 
-  const isSelected = (name: string) => selected.indexOf(name) !== -1
+  const isSelected = (id: number) => selected.indexOf(id) !== -1
 
   const emptyRows = rowsPerPage - Math.min(rowsPerPage, rows.length - page * rowsPerPage)
 
   return (
     <div className={classes.root}>
       <Paper className={classes.paper}>
-        <EnhancedTableToolbar numSelected={selected.length} />
+        <EnhancedTableToolbar selected={selected} />
         <TableContainer>
           <Table
             className={classes.table}
@@ -427,17 +426,17 @@ export default function EnhancedTable(params:{ resources:Resource[] }) {
               {stableSort(rows, getComparator(order, orderBy))
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row:Data, index) => {
-                  const isItemSelected = isSelected(row.name)
+                  const isItemSelected = isSelected(row.id)
                   const labelId = `enhanced-table-checkbox-${index}`
 
                   return (
                     <TableRow
                       hover
-                      onClick={(event) => handleClick(event, row.name)}
+                      onClick={(event) => handleClick(event, row.id)}
                       role="checkbox"
                       aria-checked={isItemSelected}
                       tabIndex={-1}
-                      key={row.name}
+                      key={row.id}
                       selected={isItemSelected}
                     >
                       <TableCell padding="checkbox">
@@ -447,14 +446,13 @@ export default function EnhancedTable(params:{ resources:Resource[] }) {
                         />
                       </TableCell>
                       <TableCell component="th" id={labelId} scope="row" padding="none">
-                        {row.name}
+                        {row.id}
                       </TableCell>
-                      <TableCell align="right" style={{ width: 40 }}>{row.id}</TableCell>
-                      <TableCell align="right" style={{ width: 40 }}>{row.url.substr(0, 40)}</TableCell>
-                      <TableCell align="right" style={{ width: 40 }}>
+                      <TableCell align="left" style={{ width: 40 }}>{row.url.substr(0, 40)}</TableCell>
+                      <TableCell align="left" style={{ width: 40 }}>
                         {row.resourceSrc && (<img style={{ height: (dense ? 33 : 53) }} src={row.resourceSrc} alt="resource" />)}
                       </TableCell>
-                      <TableCell align="right" style={{ width: 40 }}>
+                      <TableCell align="left" style={{ width: 40 }}>
                         <ResourceView
                           resource={row.origin}
                           id={row.id}
