@@ -6,34 +6,7 @@ import parseSave from './main/tts_save_file'
 import * as fs from 'fs-extra'
 import * as S from 'fp-ts/string'
 import * as path from 'path'
-import * as https from 'https' // or 'https' for https:// URLs
-
-function downloadFile(uri: string, savePath: string) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(savePath)
-    const request = https.get(uri, res => {
-      res.pipe(file)
-      res.once('end', () => {
-        if (res.statusCode !== 200) {
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          file.destroy(new Error(`Server returned status code ${res.statusCode}`))
-        } else file.close()
-      })
-    })
-    const onError = (err:any) => {
-      // TODO: remove file
-      file.removeAllListeners()
-      request.removeAllListeners()
-      reject(err)
-    }
-    file.once('close', () => {
-      file.removeAllListeners()
-      resolve(undefined)
-    })
-    file.once('error', onError)
-    request.once('error', onError)
-  })
-}
+import { downloadFile } from './downloadManager'
 
 export const state:SharedState.State = {
   saveState: [ MainT.NOT_STARTED_SAVE_FILE_YET ],
@@ -115,18 +88,20 @@ export async function handle(req:API.Req, send: (x:API.Resp) => void): Promise<A
             resource.fileState = [ SharedState.LocalFileStateT.LOADING ]
             const resourcePath = getPath(state, resource.url)
 
-            downloadFile(resource.url, resourcePath) // async or sync, that is the question
-              .then(x => {
+            downloadFile(
+              resource.url,
+              resourcePath,
+              (url => {
                 const fileState:SharedState.LocalFileState = [ SharedState.LocalFileStateT.EXIST, resourcePath ]
                 resource.fileState = fileState
                 send([ API.RespT.RESOURCE_DOWNLOADED, [idx, fileState] ])
-              })
-              .catch((err:Error) => {
+              }),
+              ((url, err: Error) => {
                 const fileState: SharedState.LocalFileState = [ SharedState.LocalFileStateT.LOAD_ERROR, err.message ]
                 resource.fileState = fileState
                 send([ API.RespT.RESOURCE_DOWNLOADED, [idx, fileState] ])
-              })
-
+              }),
+            )
             const res:API.Resp = [API.RespT.DOWNLOAD_RESOURCE_BY_INDEX_RESULT, E.right(undefined)]
             return res
           }

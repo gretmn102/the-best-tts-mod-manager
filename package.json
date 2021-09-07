@@ -39,6 +39,7 @@
     "@material-ui/icons": "^4.11.2",
     "@mui/x-data-grid": "^4.0.0",
     "@reduxjs/toolkit": "^1.5.1",
+    "async-mutex": "^0.3.2",
     "clsx": "^1.1.1",
     "fp-ts": "^2.11.1",
     "fs-extra": "^10.0.0",
