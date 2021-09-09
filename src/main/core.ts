@@ -2,11 +2,12 @@ import * as E from 'fp-ts/lib/Either'
 import * as API from '../shared/API'
 import * as SharedState from '../shared/state'
 import { MainT } from '../shared/state'
-import parseSave from './main/tts_save_file'
+import parseSave, { Result } from './main/tts_save_file'
 import * as fs from 'fs-extra'
 import * as S from 'fp-ts/string'
 import * as path from 'path'
 import { downloadFile } from './downloadManager'
+import { tuple } from 'fp-ts/lib/function'
 
 export const state:SharedState.State = {
   saveState: [ MainT.NOT_STARTED_SAVE_FILE_YET ],
@@ -42,8 +43,16 @@ export async function handle(req:API.Req, send: (x:API.Resp) => void): Promise<A
         return res
       } else {
         try {
-          const xs = await parseSave(savePath)
-          const urls = arrayDistinct(Array.from(xs).map(x => x.extractedUrl))
+          const [, [xss]] = await parseSave(
+            tuple(<Result[] []>[], 0),
+            ([state, count], x) => {
+              state.push(x)
+              return [x, tuple(state, count + 1)]
+            },
+          )(savePath)
+          const xs = xss.flat()
+
+          const urls = arrayDistinct(Array.from(xs).map(x => x.url))
           const saveFileState: SharedState.SaveFileState = {
             resources: urls.map(url => {
               const resourcePath = getPath(state, url)

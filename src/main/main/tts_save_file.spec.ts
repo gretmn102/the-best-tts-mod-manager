@@ -1,4 +1,5 @@
 import * as TtsSaveFile from './tts_save_file'
+import { tuple } from 'fp-ts/lib/function'
 
 // TODO: move into `Array` class
 function arraysEqual<T>(a:T [], b:T []) {
@@ -19,8 +20,16 @@ function arraysDistinct<T>(myArray:T []) {
 describe('save parser', () => {
   jest.setTimeout(30 * 1000)
   it('should parse all urls', done => {
-    TtsSaveFile.parseSave('./src/main/main/save_mocks/0000000.json')
-      .then(extractedUrls => {
+    TtsSaveFile.parseSave(
+      tuple(<TtsSaveFile.Result[] []>[], 0),
+      ([state, count], x) => {
+        state.push(x)
+        return [x, tuple(state, count + 1)]
+      },
+    )('./src/main/main/save_mocks/0000000.json')
+      .then(([state, [extractedUrls2, count]]) => {
+        expect(count).toEqual(973)
+
         try {
           const exp = [
             'http://example.com/0',
@@ -168,19 +177,9 @@ describe('save parser', () => {
             'https://example.com/142',
           ]
 
-          // eslint-disable-next-line no-inner-declarations, camelcase
-          function* getUrls(result:Generator<TtsSaveFile.Result, void, unknown>) {
-            // eslint-disable-next-line no-restricted-syntax
-            for (const x of result) {
-              yield x.extractedUrl
-            }
-          }
+          const act = extractedUrls2.flat().map(x => x.url)
 
-          const act = Array.from(getUrls(extractedUrls))
-
-          // for (let x of act) {
-          //   console.log(`'${x}',`);
-          // }
+          // console.log(`'${act.join(',\n')}'`)
 
           expect(new Set(act)).toEqual(new Set(exp))
           done()
@@ -189,6 +188,12 @@ describe('save parser', () => {
         }
       })
       .catch(e => { done(e) })
+  })
+  it('change urls', done => {
+    // TODO
+    // const actPath = './src/main/main/save_mocks/0000001.json'
+    // await fs.promises.writeFile(actPath, JSON.stringify(state, undefined, 2))
+    done()
   })
 })
 

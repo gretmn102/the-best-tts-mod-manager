@@ -2,19 +2,23 @@
 import * as TtsSaveFormat from '../../shared/tabletopsimulator/save_file'
 import { promises as fs } from 'fs'
 import { MOD_FILE_TYPES } from '../../shared/mod_file_types'
+import update from 'immutability-helper'
+import * as A from 'fp-ts/Array'
+import { pipe, tuple } from 'fp-ts/lib/function'
 
-interface TypeParams {
-  linkOrigin?: string
+export interface MultilanguageUrl {
+  lang: string,
+  url: string,
 }
 
-export interface Result {
-  extractedUrl: string
-  lang: string
+export interface Result extends MultilanguageUrl {
   typeInSaveFile?: MOD_FILE_TYPES
   linkOrigin?: string
 }
+
 export const defaultLang = 'default'
-export function extractMultilanguageUrls(url: string) {
+
+export function extractMultilanguageUrls(url: string): MultilanguageUrl [] {
   const urlCollector:{ lang: string; url: string } [] = []
 
   const reg = /\{(.*?)\}([^{]+)/g
@@ -33,89 +37,278 @@ export function extractMultilanguageUrls(url: string) {
   }
   return urlCollector
 }
+function multilanguageUrlsShow(ml: MultilanguageUrl []) {
+  // return pipe(
+  //   params,
+  //   A.reduce(
+  //     '',
+  //     // eslint-disable-next-line arrow-body-style
+  //     (state, x) => {
+  //       return `${state}{${x.lang}}${x.extractedUrl}`
+  //     },
+  //   ),
+  // )
+  if (ml.length === 1) {
+    return ml[0].url
+  }
+  return ml
+    .map(x => `{${x.lang}}${x.url}`)
+    .join()
+}
 
-function* addLinkToCollection(linkRawString: string, typeInSaveFile?: MOD_FILE_TYPES, linkOrigin?: string): Generator<Result, void, unknown> {
-  if (linkRawString) {
-    for (const { lang, url } of extractMultilanguageUrls(linkRawString)) {
-      yield {
-        extractedUrl: url,
-        lang: lang,
+function addLinkToCollection<State>(
+  linkRawString: string,
+  typeInSaveFile: MOD_FILE_TYPES,
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  function addLinkToCollection(linkRawString: string, typeInSaveFile: MOD_FILE_TYPES): Result [] {
+    return extractMultilanguageUrls(linkRawString)
+      .map(x => ({
+        url: x.url,
+        lang: x.lang,
         typeInSaveFile,
-        linkOrigin,
+      }))
+  }
+  const urls = addLinkToCollection(linkRawString, typeInSaveFile)
+  const [newUrls, newState] = reducer(state, urls)
+  return tuple(multilanguageUrlsShow(newUrls), newState)
+}
+
+function parseCustomMesh<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (customMesh: TtsSaveFormat.CustomMeshState) => {
+    const xs = {
+      * [Symbol.iterator](): Generator<[keyof (typeof customMesh), string, MOD_FILE_TYPES], void, unknown> {
+        if (customMesh?.ColliderURL) {
+          yield ['ColliderURL', customMesh.ColliderURL, MOD_FILE_TYPES.MODEL]
+        }
+        if (customMesh?.DiffuseURL) {
+          yield ['DiffuseURL', customMesh.DiffuseURL, MOD_FILE_TYPES.IMAGE]
+        }
+        if (customMesh?.MeshURL) {
+          yield ['MeshURL', customMesh.MeshURL, MOD_FILE_TYPES.MODEL]
+        }
+        if (customMesh?.NormalURL) {
+          yield ['NormalURL', customMesh.NormalURL, MOD_FILE_TYPES.IMAGE]
+        }
+      },
+    }
+    return pipe(
+      Array.from(xs),
+      A.reduce(
+        tuple(customMesh, state),
+        ([customMesh, state], [key, oldRawUrl, type]) => {
+          const [newRawUrl, newState] = addLinkToCollection(oldRawUrl, type, state, reducer)
+          return tuple(update(customMesh, { [key]: { $set: newRawUrl } }), newState)
+        },
+      ),
+    )
+  }
+}
+
+const mapFold = <T, State, Result>(
+  initState: State,
+  f: (state: State, x: T) => [Result, State],
+) => (xs: T []): [Result [], State] => {
+    let state = initState
+    if (xs) {
+      const ys = Array<Result>(xs.length)
+      for (let i = 0; i < xs.length; i += 1) {
+        const x = xs[i]
+        const [y, newState] = f(state, x)
+        state = newState
+        ys[i] = y
       }
+      return [ys, state]
+    } else {
+      return [xs, state]
     }
+  }
+
+// const act = pipe(
+//   [1, 2, 3],
+//   mapFold(
+//     '',
+//     (state, x) => [x + 1, `${state}${x}`],
+//   ),
+//   // (x) => console.log(x),
+// )
+// assert.deepStrictEqual(act, [ [ 2, 3, 4 ], '123' ])
+
+function parseCustomDecalStates<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (decalsArray: TtsSaveFormat.CustomDecalState[]) => {
+    const result = pipe(
+      decalsArray,
+      mapFold(
+        state,
+        (state, x) => {
+          const [newRawUrl, newState] = addLinkToCollection(x.ImageURL, MOD_FILE_TYPES.IMAGE, state, reducer)
+          const result = update(x, { ImageURL: { $set: newRawUrl } })
+          return [result, newState]
+        },
+      ),
+    )
+    return result
   }
 }
 
-function* parseCustomMesh(CustomMesh: TtsSaveFormat.CustomMeshState, params: TypeParams) {
-  yield* addLinkToCollection(CustomMesh?.ColliderURL, MOD_FILE_TYPES.MODEL, params.linkOrigin)
-  yield* addLinkToCollection(CustomMesh?.DiffuseURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
-  yield* addLinkToCollection(CustomMesh?.MeshURL, MOD_FILE_TYPES.MODEL, params.linkOrigin)
-  yield* addLinkToCollection(CustomMesh?.NormalURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
-}
-
-function* parseAttachedDecalsArray(attachedDecalsArray: TtsSaveFormat.DecalState[], params: TypeParams) {
-  if (attachedDecalsArray) {
-    for (const customUIAssets of attachedDecalsArray) {
-      yield* addLinkToCollection(customUIAssets?.CustomDecal?.ImageURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
-    }
+function parseDecalStates<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (decalStates: TtsSaveFormat.DecalState[]) => {
+    const result = pipe(
+      decalStates,
+      mapFold(
+        state,
+        (state, x) => {
+          const [newRawUrl, newState] = addLinkToCollection(x.CustomDecal.ImageURL, MOD_FILE_TYPES.IMAGE, state, reducer)
+          const result = update(x, { CustomDecal: { ImageURL: { $set: newRawUrl } } })
+          return [result, newState]
+        },
+      ),
+    )
+    return result
   }
 }
 
-function parseSkyURL(SkyURL: string, params: TypeParams) {
-  return addLinkToCollection(SkyURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
+function parseSkyURL<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (SkyURL: string) => addLinkToCollection(SkyURL, MOD_FILE_TYPES.IMAGE, state, reducer)
 }
-function parseTableURL(TableURL: string, params: TypeParams) {
-  return addLinkToCollection(TableURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
+function parseTableURL<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (TableURL: string) => addLinkToCollection(TableURL, MOD_FILE_TYPES.IMAGE, state, reducer)
 }
 
-function* parseDecalPalletArray(decalPalletArray: TtsSaveFormat.CustomDecalState[], params: TypeParams) {
-  if (decalPalletArray) {
-    for (const decalPallet of decalPalletArray) {
-      yield* addLinkToCollection(decalPallet?.ImageURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
-    }
+function parseCustomUIAssetsArray<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (customUIAssetsArray: TtsSaveFormat.CustomAssetState[]) => {
+    const result = pipe(
+      customUIAssetsArray,
+      mapFold(
+        state,
+        (state, x) => {
+          const [newRawUrl, newState] = addLinkToCollection(x.URL, MOD_FILE_TYPES.IMAGE, state, reducer)
+          const result = update(x, { URL: { $set: newRawUrl } })
+          return [result, newState]
+        },
+      ),
+    )
+    return result
   }
 }
 
-function* parseDecalsArray(decalsArray: TtsSaveFormat.CustomDecalState[], params: TypeParams) {
-  if (decalsArray) {
-    for (const decalPallet of decalsArray) {
-      yield* addLinkToCollection(decalPallet?.ImageURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
+function parseCustomAssetbundle<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (customAssetbundle: TtsSaveFormat.CustomAssetbundleState) => {
+    const xs = {
+      * [Symbol.iterator](): Generator<[keyof (typeof customAssetbundle), string, MOD_FILE_TYPES], void, unknown> {
+        if (customAssetbundle?.AssetbundleSecondaryURL) {
+          yield ['AssetbundleSecondaryURL', customAssetbundle.AssetbundleSecondaryURL, MOD_FILE_TYPES.ASSETBUNDLE]
+        }
+        if (customAssetbundle?.AssetbundleURL) {
+          yield ['AssetbundleURL', customAssetbundle.AssetbundleURL, MOD_FILE_TYPES.ASSETBUNDLE]
+        }
+      },
     }
+    return pipe(
+      Array.from(xs),
+      A.reduce(
+        tuple(customAssetbundle, state),
+        ([x, state], [key, oldRawUrl, type]) => {
+          const [newRawUrl, newState] = addLinkToCollection(oldRawUrl, type, state, reducer)
+          return tuple(update(x, { [key]: { $set: newRawUrl } }), newState)
+        },
+      ),
+    )
   }
 }
 
-function* parseCustomUIAssetsArray(customUIAssetsArray: TtsSaveFormat.CustomAssetState[], params: TypeParams) {
-  if (customUIAssetsArray) {
-    for (const customUIAssets of customUIAssetsArray) {
-      yield* addLinkToCollection(customUIAssets?.URL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
+function parseCustomDeckMap<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (customDeckArray: { [key: number]: TtsSaveFormat.CustomDeckState }) => {
+    const customDeckStateMapFold = (state: State, customDeck: TtsSaveFormat.CustomDeckState) => {
+      const xs: [keyof (typeof customDeck), string, MOD_FILE_TYPES][] = [
+        ['FaceURL', customDeck.FaceURL, MOD_FILE_TYPES.IMAGE],
+        ['BackURL', customDeck.BackURL, MOD_FILE_TYPES.IMAGE],
+      ]
+      return pipe(
+        xs,
+        A.reduce(
+          tuple(customDeck, state),
+          ([x, state], [key, oldRawUrl, type]) => {
+            const [newRawUrl, newState] = addLinkToCollection(oldRawUrl, type, state, reducer)
+            return tuple(update(x, { [key]: { $set: newRawUrl } }), newState)
+          },
+        ),
+      )
     }
+    return pipe(
+      Object.entries(customDeckArray),
+      A.reduce(
+        tuple(customDeckArray, state),
+        ([customDeckArray, state], [key, x]) => {
+          const [newX, newState] = customDeckStateMapFold(state, x)
+          return tuple(update(customDeckArray, { [key]: { $set: newX } }), newState)
+        },
+      ),
+    )
   }
 }
 
-function* parseCustomAssetbundle(customAssetbundle: TtsSaveFormat.CustomAssetbundleState, params: TypeParams) {
-  yield* addLinkToCollection(customAssetbundle?.AssetbundleSecondaryURL, MOD_FILE_TYPES.ASSETBUNDLE, params.linkOrigin)
-  yield* addLinkToCollection(customAssetbundle?.AssetbundleURL, MOD_FILE_TYPES.ASSETBUNDLE, params.linkOrigin)
-}
-
-function* parseCustomDeckMap(customDeckArray: {
-  [key: number]: TtsSaveFormat.CustomDeckState;
-}, params: TypeParams) {
-  if (customDeckArray) {
-    for (const customDeck of Object.values(customDeckArray)) {
-      yield* addLinkToCollection(customDeck?.BackURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
-      yield* addLinkToCollection(customDeck?.FaceURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
+function parseCustomImage<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (customImage: TtsSaveFormat.CustomImageState) => {
+    const xs = {
+      * [Symbol.iterator](): Generator<[keyof (typeof customImage), string, MOD_FILE_TYPES], void, unknown> {
+        if (customImage?.ImageSecondaryURL) {
+          yield ['ImageSecondaryURL', customImage.ImageSecondaryURL, MOD_FILE_TYPES.IMAGE]
+        }
+        if (customImage?.ImageURL) {
+          yield ['ImageURL', customImage.ImageURL, MOD_FILE_TYPES.IMAGE]
+        }
+      },
     }
+    return pipe(
+      Array.from(xs),
+      A.reduce(
+        tuple(customImage, state),
+        ([x, state], [key, oldRawUrl, type]) => {
+          const [newRawUrl, newState] = addLinkToCollection(oldRawUrl, type, state, reducer)
+          return tuple(update(x, { [key]: { $set: newRawUrl } }), newState)
+        },
+      ),
+    )
   }
 }
 
-function* parseCustomImage(customImage: TtsSaveFormat.CustomImageState, params: TypeParams) {
-  yield* addLinkToCollection(customImage?.ImageSecondaryURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
-  yield* addLinkToCollection(customImage?.ImageURL, MOD_FILE_TYPES.IMAGE, params.linkOrigin)
-}
-
-function parseCustomPDF(customPDF: TtsSaveFormat.CustomPDFState, params: TypeParams) {
-  return addLinkToCollection(customPDF?.PDFUrl, MOD_FILE_TYPES.PDF, params.linkOrigin)
+function parseCustomPDF<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (customPDF: TtsSaveFormat.CustomPDFState) => {
+    const [newRawUrl, newState] = addLinkToCollection(customPDF.PDFUrl, MOD_FILE_TYPES.PDF, state, reducer)
+    return tuple(update(customPDF, { PDFUrl: { $set: newRawUrl } }), newState)
+  }
 }
 
 const findAllLinksRegExp = new RegExp(/((http|ftp|ftps|https):((\/\/)|(\\\\))([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?)/gmi)
@@ -127,82 +320,170 @@ function checkIgnoreLinks(link: string) {
   return false
 }
 
-function* parseCustomStringForLinks(stringVar: string, params: TypeParams) {
-  if (stringVar) {
-    const iteratorVar = stringVar.matchAll(findAllLinksRegExp)
-
-    for (const val of iteratorVar) {
-      if (!checkIgnoreLinks(val[1])) {
-        yield* addLinkToCollection(val[1], undefined, params.linkOrigin)
-      }
+function parseCustomStringForLinks<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (stringVar: string) => {
+    if (stringVar) {
+      const result = pipe(
+        Array.from(stringVar.matchAll(findAllLinksRegExp)),
+        A.filter(x => !checkIgnoreLinks(x[1])),
+        A.reduce(
+          tuple(stringVar, state),
+          ([stringVar, state], val) => {
+            const oldRawUrl = val[1]
+            const [newRawUrl, newState] = addLinkToCollection(oldRawUrl, MOD_FILE_TYPES.UNKNOWN, state, reducer)
+            // `.replaceAll` is not used because of this https://stackoverflow.com/a/65295740
+            const newStringVar = stringVar.replace(RegExp(oldRawUrl), newRawUrl)
+            return tuple(newStringVar, newState)
+          },
+        ),
+      )
+      return result
+    } else {
+      return tuple(stringVar, state)
     }
   }
 }
 
-function parseXmlUI(XmlUI: string, params: TypeParams) {
-  return parseCustomStringForLinks(XmlUI, params)
+function parseXmlUI<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (XmlUI: string) => parseCustomStringForLinks(state, reducer)(XmlUI)
 }
 
-function parseLuaForLinks(luaString: string, params: TypeParams) {
-  return parseCustomStringForLinks(luaString, params)
+function parseLuaForLinks<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (luaString: string) => parseCustomStringForLinks(state, reducer)(luaString)
 }
 
-function parseLuaStateForLinks(luaString: string, params: TypeParams) {
-  return parseCustomStringForLinks(luaString, params)
+function parseLuaStateForLinks<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (luaString: string) => parseCustomStringForLinks(state, reducer)(luaString)
 }
 
-function* parseInnerStates(objectStates: TtsSaveFormat.ObjectState[]) {
-  if (objectStates) {
-    for (const objectStateInner of objectStates) {
-      // eslint-disable-next-line eqeqeq
-      if (objectStateInner != undefined && objectStateInner != null) {
+function parseInnerStates<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (objectStates: TtsSaveFormat.ObjectState[]) => {
+    const result = pipe(
+      objectStates,
+      mapFold(
+        state,
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        yield* parseState(objectStateInner)
-      }
+        (state, val) => parseState(state, reducer)(val),
+      ),
+    )
+    return result
+  }
+}
+type ValueOf<T> = T[keyof T]
+
+function parseState<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (objectState: TtsSaveFormat.ObjectState) => {
+    const xs = {
+      * [Symbol.iterator](): Generator<[keyof (typeof objectState), (state: State) => [ValueOf<typeof objectState>, State]], void, unknown> {
+        yield ['AttachedDecals', (state: State) => parseDecalStates(state, reducer)(objectState.AttachedDecals)]
+        yield ['CustomAssetbundle', (state:State) => parseCustomAssetbundle(state, reducer)(objectState.CustomAssetbundle)]
+        if (objectState?.CustomDeck) {
+          yield ['CustomDeck', (state:State) => parseCustomDeckMap(state, reducer)(objectState.CustomDeck)]
+        }
+        yield ['CustomImage', (state:State) => parseCustomImage(state, reducer)(objectState.CustomImage)]
+        if (objectState?.CustomPDF) {
+          yield ['CustomPDF', (state:State) => parseCustomPDF(state, reducer)(objectState.CustomPDF)]
+        }
+        yield ['CustomMesh', (state:State) => parseCustomMesh(state, reducer)(objectState.CustomMesh)]
+        yield ['CustomUIAssets', (state:State) => parseCustomUIAssetsArray(state, reducer)(objectState.CustomUIAssets)]
+        yield ['XmlUI', (state:State) => parseXmlUI(state, reducer)(objectState.XmlUI)]
+        yield ['LuaScript', (state:State) => parseLuaForLinks(state, reducer)(objectState.LuaScript)]
+        yield ['LuaScriptState', (state:State) => parseLuaStateForLinks(state, reducer)(objectState.LuaScriptState)]
+        if (objectState?.States) {
+          yield ['States', (state:State) => {
+            const x = pipe(
+              Object.entries(objectState.States),
+              A.reduce(
+                tuple(objectState.States, state),
+                ([x, state], [key, val]) => {
+                  const [newX, newState] = parseInnerStates(state, reducer)([val])
+                  return tuple(update(x, { [key]: { $set: newX[0] } }), newState)
+                },
+              ),
+            )
+            return x
+          }]
+        }
+        yield ['ContainedObjects', (state:State) => parseInnerStates(state, reducer)(objectState.ContainedObjects)]
+      },
     }
+
+    return pipe(
+      Array.from(xs),
+      A.reduce(
+        tuple(objectState, state),
+        ([objectState, state], [key, f]) => {
+          const [newValue, newState] = f(state)
+          return tuple(update(objectState, { [key]: { $set: newValue } }), newState)
+        },
+      ),
+    )
   }
 }
 
-function* parseState(objectState: TtsSaveFormat.ObjectState): Generator<Result, void, unknown> {
-  yield* parseAttachedDecalsArray(objectState?.AttachedDecals, { linkOrigin: 'ObjAttachedDecals' })
-  yield* parseCustomAssetbundle(objectState?.CustomAssetbundle, { linkOrigin: 'ObjCustomAssetbundle' })
-  yield* parseCustomDeckMap(objectState?.CustomDeck, { linkOrigin: 'ObjCustomDeck' })
-  yield* parseCustomImage(objectState?.CustomImage, { linkOrigin: 'ObjCustomImage' })
-  yield* parseCustomPDF(objectState?.CustomPDF, { linkOrigin: 'ObjCustomPDF' })
-  yield* parseCustomMesh(objectState?.CustomMesh, { linkOrigin: 'ObjCustomMesh' })
-  yield* parseCustomUIAssetsArray(objectState?.CustomUIAssets, { linkOrigin: 'ObjCustomUIAssets' })
-  yield* parseXmlUI(objectState?.XmlUI, { linkOrigin: 'ObjXmlUI' })
+export function parse<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return (content: string) => {
+    const saveState = <TtsSaveFormat.SaveState>JSON.parse(content)
+    const xs = {
+      * [Symbol.iterator](): Generator<[keyof (typeof saveState), (state: State) => [ValueOf<typeof saveState>, State]], void, unknown> {
+        yield ['CustomUIAssets', (state:State) => parseCustomUIAssetsArray(state, reducer)(saveState.CustomUIAssets)]
+        yield ['Decals', (state:State) => parseDecalStates(state, reducer)(saveState.Decals)]
+        yield ['DecalPallet', (state:State) => parseCustomDecalStates(state, reducer)(saveState.DecalPallet)]
+        if (saveState?.SkyURL) {
+          yield ['SkyURL', (state:State) => parseSkyURL(state, reducer)(saveState.SkyURL)]
+        }
+        if (saveState?.TableURL) {
+          yield ['TableURL', (state:State) => parseTableURL(state, reducer)(saveState.TableURL)]
+        }
+        yield ['XmlUI', (state:State) => parseXmlUI(state, reducer)(saveState.XmlUI)]
+        yield ['LuaScript', (state:State) => parseLuaForLinks(state, reducer)(saveState.LuaScript)]
+        yield ['LuaScriptState', (state:State) => parseLuaStateForLinks(state, reducer)(saveState.LuaScriptState)]
+        yield ['ObjectStates', (state:State) => parseInnerStates(state, reducer)(saveState.ObjectStates)]
+      },
+    }
 
-  yield* parseLuaForLinks(objectState?.LuaScript, { linkOrigin: 'ObjLuaScript' })
-  yield* parseLuaStateForLinks(objectState?.LuaScriptState, { linkOrigin: 'ObjLuaScriptState' })
-
-  if (objectState?.States) {
-    yield* parseInnerStates(Object.values(objectState?.States))
+    return pipe(
+      Array.from(xs),
+      A.reduce(
+        tuple(saveState, state),
+        ([saveState, state], [key, f]) => {
+          const [newValue, newState] = f(state)
+          return tuple(update(saveState, { [key]: { $set: newValue } }), newState)
+        },
+      ),
+    )
   }
-
-  yield* parseInnerStates(objectState?.ContainedObjects)
 }
 
-export function* parse(content: string): Generator<Result, void, unknown> {
-  const saveState = <TtsSaveFormat.SaveState>JSON.parse(content)
-
-  yield* parseCustomUIAssetsArray(saveState?.CustomUIAssets, { linkOrigin: 'SaveCustomUIAssets' })
-  yield* parseDecalPalletArray(saveState?.DecalPallet, { linkOrigin: 'SaveDecalPallet' })
-  yield* parseDecalsArray(saveState?.DecalPallet, { linkOrigin: 'SaveDecalPallet' })
-
-  yield* parseSkyURL(saveState?.SkyURL, { linkOrigin: 'SaveSkyURL' })
-  yield* parseTableURL(saveState?.TableURL, { linkOrigin: 'SaveTableURL' })
-  yield* parseXmlUI(saveState?.XmlUI, { linkOrigin: 'SaveXmlUI' })
-
-  yield* parseLuaForLinks(saveState?.LuaScript, { linkOrigin: 'SaveLuaScript' })
-  yield* parseLuaStateForLinks(saveState?.LuaScriptState, { linkOrigin: 'SaveLuaScriptState' })
-
-  yield* parseInnerStates(saveState?.ObjectStates)
-}
-
-export async function parseSave(filePath: string) {
-  const content = await fs.readFile(filePath, 'utf8')
-  return parse(content)
+export function parseSave<State>(
+  state: State,
+  reducer: (state:State, arg1:Result []) => [Result [], State],
+) {
+  return async (filePath: string) => {
+    const content = await fs.readFile(filePath, 'utf8')
+    return parse(state, reducer)(content)
+  }
 }
 
 export default parseSave
