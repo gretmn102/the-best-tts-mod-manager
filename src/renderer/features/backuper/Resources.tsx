@@ -29,7 +29,102 @@ import {
 import { blue } from '@material-ui/core/colors'
 import { LocalFileStateT, Resource } from '../../../shared/state'
 import { useAppDispatch } from '../../app/hooks'
-import { downloadResourceByIndex, downloadResourcesByIndexes } from './backuperSlice'
+import { downloadResourceByIndex, downloadResourcesByIndexes, replaceUrl } from './backuperSlice'
+import FormControl from '@material-ui/core/FormControl'
+import Input from '@material-ui/core/Input'
+import InputLabel from '@material-ui/core/InputLabel'
+import InputAdornment from '@material-ui/core/InputAdornment'
+import * as icons from '@material-ui/icons'
+
+const useStyles2 = makeStyles((theme) => ({
+  root: {
+    display: 'flex',
+    flexWrap: 'wrap',
+  },
+  margin: {
+    margin: theme.spacing(1),
+  },
+  withoutLabel: {
+    marginTop: theme.spacing(3),
+  },
+  textField: {
+    width: '25ch',
+  },
+}))
+
+function ChangeSrc(params: { src: string, resourceId: number }) {
+  const classes = useStyles2()
+  const { src, resourceId } = params
+  const dispatch = useAppDispatch()
+  const [values, setValues] = React.useState({
+    value: '',
+    isEditMode: false,
+  })
+
+  const handleChange = (prop: keyof (typeof values)) => (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    setValues({ ...values, [prop]: event.target.value })
+  }
+
+  const handleTurnEditMode = (isEditMode: boolean) => (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    setValues({ ...values, isEditMode: isEditMode, value: isEditMode ? src : '' })
+  }
+
+  const handleDone = () => (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    setValues({ ...values, isEditMode: false })
+    dispatch(replaceUrl(resourceId, values.value))
+  }
+
+  const handleMouseDownInput = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    event.preventDefault()
+  }
+
+  let buttons: JSX.Element
+  if (values.isEditMode) {
+    buttons = (
+      <>
+        <IconButton
+          aria-label="toggle input done"
+          onClick={handleDone()}
+          onMouseDown={handleMouseDownInput}
+        >
+          <icons.Done />
+        </IconButton>
+        <IconButton
+          aria-label="toggle input cancel"
+          onClick={handleTurnEditMode(false)}
+          onMouseDown={handleMouseDownInput}
+        >
+          <icons.Cancel />
+        </IconButton>
+      </>
+    )
+  } else {
+    buttons = (
+      <IconButton
+        aria-label="toggle input edit"
+        onClick={handleTurnEditMode(true)}
+        onMouseDown={handleMouseDownInput}
+      >
+        <icons.Edit />
+      </IconButton>
+    )
+  }
+  return (
+    <FormControl className={clsx(classes.margin, classes.textField)}>
+      <InputLabel htmlFor="standard-adornment-input">Source</InputLabel>
+      <Input
+        id="standard-adornment-input"
+        type="text"
+        disabled={!values.isEditMode}
+        value={values.isEditMode ? values.value : src}
+        onChange={handleChange('value')}
+        endAdornment={(
+          <InputAdornment position="end">{buttons}</InputAdornment>
+        )}
+      />
+    </FormControl>
+  )
+}
 
 const useStyles = makeStyles((theme) => ({
   content: {
@@ -448,7 +543,12 @@ export default function EnhancedTable(params:{ resources:Resource[] }) {
                       <TableCell component="th" id={labelId} scope="row" padding="none">
                         {row.id}
                       </TableCell>
-                      <TableCell align="left" style={{ width: 40 }}>{row.url.substr(0, 40)}</TableCell>
+                      <TableCell align="left" style={{ width: 40 }}>
+                        <ChangeSrc
+                          resourceId={row.id}
+                          src={row.url}
+                        />
+                      </TableCell>
                       <TableCell align="left" style={{ width: 40 }}>
                         {row.resourceSrc && (<img style={{ height: (dense ? 33 : 53) }} src={row.resourceSrc} alt="resource" />)}
                       </TableCell>

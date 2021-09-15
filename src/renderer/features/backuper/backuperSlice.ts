@@ -91,6 +91,7 @@ export const parse = (resp:API.Resp): AppThunk => (
       }))
     } break
     case API.RespT.DOWNLOAD_RESOURCES_BY_INDEXES_RESULT: break
+    case API.RespT.REPLACE_URL_RESULT: break
   }
 }
 
@@ -116,7 +117,8 @@ export const downloadResourceByIndex = (index: number): AppThunk => (
     const [, x] = state.status
 
     const saveFileState = pipe(x, E.map((saveFileState) => {
-      send(API.channel, [API.ReqT.DOWNLOAD_RESOURCE_BY_INDEX, index])
+      const res: API.Req = [API.ReqT.DOWNLOAD_RESOURCE_BY_INDEX, index]
+      send(API.channel, res)
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return update(saveFileState, {
@@ -174,6 +176,48 @@ export const downloadResourcesByIndexes = (indexes: number []): AppThunk => (
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return update(saveFileState, {
         resources: targetResources,
+      })
+    }))
+
+    const result = update(
+      state,
+      {
+        status: {
+          1: {
+            $set: saveFileState,
+          },
+        },
+      },
+    )
+    dispatch(backuperSlice.actions.set(result))
+  }
+}
+
+export const replaceUrl = (index: number, newSrc: string): AppThunk => (
+  dispatch,
+  getState,
+  send,
+) => {
+  const state = getState().backuper
+  if (state.status[0] === States.RESOLVED) {
+    const [, x] = state.status
+
+    const saveFileState = pipe(x, E.map((saveFileState) => {
+      const res: API.Req = [API.ReqT.REPLACE_URL, index, newSrc]
+      send(API.channel, res)
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return update(saveFileState, {
+        resources: {
+          [index]: {
+            fileState: {
+              $set: [SharedState.LocalFileStateT.NOT_EXIST],
+            },
+            url: {
+              $set: newSrc,
+            },
+          },
+        },
       })
     }))
 

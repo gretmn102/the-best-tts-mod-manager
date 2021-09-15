@@ -154,5 +154,19 @@ export async function handle(req:API.Req, send: (x:API.Resp) => void): Promise<A
         case MainT.NOT_STARTED_SAVE_FILE_YET: { throw new Error('Not implemented yet: MainT.NOT_STARTED_SAVE_FILE_YET case') }
       } break
     }
+    case API.ReqT.REPLACE_URL: {
+      const [, index, newUrl] = req
+      switch (state.saveState[0]) {
+        case MainT.SAVE_FILE_HANDLE:
+          const [, x] = state.saveState
+          const resource = x.resources[index]
+          resource.url = newUrl
+          resource.fileState = [SharedState.LocalFileStateT.NOT_EXIST]
+
+          const res:API.Resp = [API.RespT.REPLACE_URL_RESULT]
+          return res
+        case MainT.NOT_STARTED_SAVE_FILE_YET: { throw new Error('Not implemented yet: MainT.NOT_STARTED_SAVE_FILE_YET case') }
+      }
+    }
   }
 }
